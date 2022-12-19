@@ -1,0 +1,229 @@
+---
+title             : "Assignment 6---Split Plot Design."
+shorttitle        : "Assignment 6"
+
+params:
+  firstname  : Yudhajit
+  lastname   : Ain
+  studentid  : 0123456789
+  TAs        : "Christopher Davie & Benjamin Moon"
+  show_output: FALSE
+  assignment: 6
+
+output: papaja::apa6_docx
+knit: ( function(input, ...) { source("../../R/knit.R"); knit_assignment(input, ...) })
+---
+
+```{r setup, include=FALSE}
+# set up here
+here::i_am("assignments/assignment-6/assignment-6.Rmd")
+
+# load packages
+library(here)
+library(papaja)
+library(readr)
+library(dplyr)
+library(ggpubr)
+library(datawizard)
+library(broom)
+```
+
+```{r set-chunk-opts, include=FALSE, code=xfun::read_utf8(here('R', 'chunk-opts.R'))}
+```
+
+# Questions
+
+*Your assignment cannot go beyond 8 pages, this includes any necessary figures or tables. Please refer to the rubric for expectations and grading criteria. There is also a checklist for you to complete to make sure you have addressed everything (you do not need to submit this with your assignment).*
+
+*For this assignment you will be asked to take a situation and research question, devise a hypothesis(es) to address the research question, plan and complete the required analyses, and fully report your analysis in APA format.*
+
+*From the `data` directory, please import `assignment-6.csv` into R.*
+
+```{r df}
+
+data_q6 = readr::read_csv(here("data","assignment-6.csv"),
+                          col_types = "fffd")
+
+```
+
+*Recently, a new trend has popped up in high-intensity industries like Silicon Valley: LSD taken daily through “micro-doses”, claiming to make users more focused, and thus more productive (https://www.scientificamerican.com/article/do-microdoses-of-lsd-change-your-mind/). Let’s imagine two new brands of “legal” LSD have entered the market, Drug Alpha and Drug Beta. Both claim to increase one’s ability to concentrate through regular daily use. The makers of Drug Alpha state that their drug will be effective right away, whereas the makers of Drug Beta advise that effects may take up to two weeks of regular use to emerge. You are interested in testing the companies claims that taking micro-doses of their LSD regularly increases peoples’ levels of concentration.*
+
+*You design a study in which participants were randomly assigned to receive daily micro-doses of one of the three drug conditions (Drug Alpha, Drug Beta, Placebo) over the course of a two-week period. Prior to receiving the drug, participants had their baseline concentration measured using the Frankfurt Adaptive Concentration Test, where they must respond to two target images whenever they appear amongst several distractor images (with the test adapting to their level of performance). This results in an accuracy score from 0-10, with higher numbers reflecting higher accuracy and thus better concentration. Concentration was measured again after 7 and 14 days of micro-dose administration.*
+
+## Question 1
+
+*Write out your hypothesis(es) in sentence format that will address the research question, taking into account the information provided about efficacy about the drugs (and don’t forget about the placebo). (Do not look at the data first!).*
+
+We hypothesise the following effects on accuracy scores:
+
+1. There is a significant interaction between drug and session.
+2. We will investigate this interaction with planned trend-analyses, separately for alpha, beta and placebo levels. The hypotheses are :
+  a) For alpha, we expect a significant linear trend, since it is supposed to take effect right away, and increase concentration with regular daily use
+  b) For beta, we expect a significant quadratic trend, since it is supposed to take upto two weeks of use for it to take effect, and then increase concentration with regular daily use
+  c) For placebo, we expect no significant trends. 
+
+## Question 2
+
+*Provide an outline of a plan for how you will conduct the analyses in order to address the hypothesis(es). Hint: Consider and plan for different possible scenarios.*
+
+Our entire protocol for this study consists of four main parts: 1) Checking assumptions for omnibus ANOVA, 2)Running the 3-by-3 omnibus-ANOVA, 3) If interaction is significant in omnibus-ANOVA, performing planned follow-up trend analyses or post-hoc pairwise follow-up comparisons for main effects (if interaction is non-sig.), 
+
+In detail,
+
+1) Assumptions:
+  a) Normality: We will run Shapiro-Wilk's test to check for within-group normality for all levels of the independent variables (drug, session). If normality is violated for any of the groups, we can check and remove outliers, or transform data using an appropriate method.
+  b) Homogeneity of variance: We will run a Levene's test to check for equality of variance across levels of the between-subjects factor (drug) for all levels of the within-subject variable (session) separately. If this assumption is violated, we should proceed with using the Brown-Forsythe $F$-test instead of the normal unadjusted omnibus-ANOVA.
+  c) Sphericity: We will run a Mauchly's test to check for sphericity of the within-subjects sources of variance (session, drug*session). If this assumption is violated, we will note the value of $\varepsilon$, and depending on its value, use the corresponding adjustment to the critical $F$-value to interpret significance of effects.
+
+2) omnibus-ANOVA:
+  a) If there is a significant interaction between drug and session, we do not interpret any main effects (even if significant). We proceed to investigate this interaction using trend analyses of the effect of session, for all drug levels separately.
+  b) If interaction is non-significant, we check for any significant main effects. If there is one, we proceed to investigate where the group differences are using Tukey's post-hoc pairwise comparisons.
+  c) If there are no significant effects, we stop here.
+  
+3) Follow-ups:
+  a) If we are following-up on a significant interaction between drug and session, we will do two trend analyses (quadratic and linear) for each of the drug-levels alpha, beta, and placebo. Since this will mean a total of six trends being tested, each trend will be evaluated for significance at an $\alpha$-level of $.05/6=.008$.
+  b) If we are following-up on a significant main effect of either drug or session (drug*session interaction was non-significant), we use Tukey's pairwise comparisons between levels of that factor.
+
+## Question 3
+
+*Complete the analyses as per your plan and report the results in APA format. Treat this as an actual results section in something like your thesis or a manuscript, including all reporting on assumptions, steps taken to clean the data (if any), corrections/adjustments made, effect sizes (partial eta is okay), and appropriate figures or tables.*
+
+```{r}
+
+d1=dplyr::filter(data_q6,drug=="Placebo" & session=="Baseline")
+#shapiro.test(d1$concentration)
+
+ d2=dplyr::filter(data_q6,drug=="Placebo" & session=="Week1")
+# shapiro.test(d2$concentration)
+# ggboxplot(d2,x="drug",y="concentration")
+# d2[order(d2$concentration),]
+# 
+ d3=dplyr::filter(data_q6,drug=="Placebo" & session=="Week2")
+# shapiro.test(d3$concentration)
+# ggboxplot(d3,x="drug",y="concentration")
+# d3[order(d3$concentration),]
+# 
+ d4=dplyr::filter(data_q6,drug=="Alpha" & session=="Baseline")
+# shapiro.test(d4$concentration)
+# ggboxplot(d4,x="drug",y="concentration")
+# d4[order(d4$concentration),]
+# 
+ d5=dplyr::filter(data_q6,drug=="Alpha" & session=="Week1")
+# shapiro.test(d5$concentration)
+# ggboxplot(d5,x="drug",y="concentration")
+# d5[order(d5$concentration),]
+# 
+ d6=dplyr::filter(data_q6,drug=="Alpha" & session=="Week2")
+# shapiro.test(d6$concentration)
+# 
+ d7=dplyr::filter(data_q6,drug=="Beta" & session=="Baseline")
+# shapiro.test(d7$concentration)
+# ggboxplot(d7,x="drug",y="concentration")
+# d7[order(d7$concentration),]
+# 
+ d8=dplyr::filter(data_q6,drug=="Beta" & session=="Week1")
+# shapiro.test(d8$concentration)
+# ggboxplot(d8,x="drug",y="concentration")
+# d8[order(d8$concentration),]
+# 
+ d9=dplyr::filter(data_q6,drug=="Beta" & session=="Week2")
+# shapiro.test(d9$concentration)
+# ggboxplot(d9,x="drug",y="concentration")
+# d9[order(d9$concentration),]
+# 
+# #remove outliers
+ data_q6_filt = dplyr::filter(data_q6,id!="62" & id!="39" & id!="20" & id!="16")
+
+#new cells after filtering outliers
+d1filt=dplyr::filter(data_q6_filt,drug=="Placebo" & session=="Baseline")
+d2filt=dplyr::filter(data_q6_filt,drug=="Placebo" & session=="Week1")
+d3filt=dplyr::filter(data_q6_filt,drug=="Placebo" & session=="Week2")
+d4filt=dplyr::filter(data_q6_filt,drug=="Alpha" & session=="Baseline")
+d5filt=dplyr::filter(data_q6_filt,drug=="Alpha" & session=="Week1")
+d6filt=dplyr::filter(data_q6_filt,drug=="Alpha" & session=="Week2")
+d7filt=dplyr::filter(data_q6_filt,drug=="Beta" & session=="Baseline")
+d8filt=dplyr::filter(data_q6_filt,drug=="Beta" & session=="Week1")
+d9filt=dplyr::filter(data_q6_filt,drug=="Beta" & session=="Week2")
+
+r1=tidy(shapiro.test(d1filt$concentration))
+r2=tidy(shapiro.test(d2filt$concentration))
+r3=tidy(shapiro.test(d3filt$concentration))
+r4=tidy(shapiro.test(d4filt$concentration))
+r5=tidy(shapiro.test(d5filt$concentration))
+r6=tidy(shapiro.test(d6filt$concentration))
+r7=tidy(shapiro.test(d7filt$concentration))
+r8=tidy(shapiro.test(d8filt$concentration))
+r9=tidy(shapiro.test(d9filt$concentration))
+
+mario = rbind(r1,r2,r3,r4,r5,r6,r7,r8,r9)
+ mario = cbind(tibble::tribble(~Group,"Placebo, Baseline","Placebo, Week 1","Placebo, Week 2","Alpha, Baseline","Alpha, Week 1","Alpha, Week 2","Beta, Baseline","Beta, Week 1","Beta, Week 2"), dplyr::select(mario,1), tibble::tribble(~df,"19","19","19","20","20","20","20","20","20"), dplyr::select(mario,2))
+ colnames(mario) = c("Group","Shapiro-Wilk's W","df","Significance")
+
+#Do levene's for each within-factor
+dfilt_baseline=dplyr::filter(data_q6_filt,session=="Baseline")
+dfilt_w1=dplyr::filter(data_q6_filt,session=="Week1")
+dfilt_w2=dplyr::filter(data_q6_filt,session=="Week2")
+
+# car::leveneTest(y=dfilt_baseline$concentration,group=dfilt_baseline$drug,center=mean)
+# car::leveneTest(y=dfilt_w1$concentration,group=dfilt_w1$drug,center=mean)
+# car::leveneTest(y=dfilt_w2$concentration,group=dfilt_w2$drug,center=mean)
+
+#Do the ANOVA
+model=afex::aov_car(
+  concentration ~ drug*session + Error(id/session),
+  type=3,
+  data=data_q6_filt
+)
+# summary(model)
+# effectsize::omega_squared(model)
+
+#get emmgrid
+model_emm = emmeans::emmeans(model,specs="session",by="drug")
+
+model_emm_contrast = emmeans::contrast(
+  model_emm,
+  method = "poly",
+  infer = TRUE,
+  adjust = "none"
+)
+#model_emm_contrast
+
+model_emm = broom::tidy(model_emm, conf.int = TRUE)
+#model_emm
+
+
+```
+
+
+# Results
+
+To test if there is a significant effect of drug type or session on participants' concentration, we decide to run a two-way mixed-effects ANOVA with drug as between-subjects factor and session as within-subjects factor. To make sure the assumption of normality was satisfied for all combinations of levels of our independent variables, we perform a Shapiro-Wilk's test for every possible combination. For six of the nine groups where normality was violated, indicated by a significant Shapiro-Wilk's $W$, we looked at the boxplot and removed all data for four participants who contributed to outliers. SHapiro_wilk's test was repeated after removal of outliers, and the results are presented in table 1. The results indicate that all groups were now normally distributed, except the (Alpha, Baseline) group. The data for this group was bimodally distributed, as seen in a histogram. Since it was the only non-normal group and was only moderately significant, we proceed without making any transformations. To test for homogeneity of variances across levels of drug, we do a Levene's test at each level of session. There was no violation of this assumption; Baseline: $F(2,56)=0.24,p=.786$, Week 1: $F(2,56)=1.61,p=.209$, Week 2: $F(2,56)=0.185,p=.831$. We also test for sphericity of the within-subjects variable session, as well as the interaction between session and drug. The Mauchly's test for sphericity confirmed that there was no significant violation of sphericity for either session ($W(2)=0.90,p=.066,\varepsilon_{GG}=.91$) or the interaction between session and drug ($W(4)=0.90,p=.066,\varepsilon_{GG}=.91$). Since $\varepsilon_{GG}>.75$ for both within-subject sources of variance, we decide to look at the Huynh-Feldt corrected $F$-values in the omnibus-ANOVA for these effects. With all assumptions met, we run the omnibus-ANOVA, and find that there is a significant interaction between session and drug ($F(3.76,105.28)=36.61,p<.001,\omega^2_p=.49$). There is also a significant main effect of drug ($F(2,56)=11.14,p<.001,\omega^2_p=.26$), as well as a significant main effect of session ($F(1.88,52.64)=37.09,p<.001,\omega^2_p=.33$). To follow-up on the interaction, we did trend analyses at each level of drug separately. For the placebo drug, none of the trends were significant; quadratic: $t(56)=-2.68,p=.010,d_z=-0.36$, linear: $t(56)=1.37,p=.177,d_z=0.18$. For the drug Alpha, both linear ($t(56)=-5.74,p<.001,d_z=-0.77$) and quadratic ($t(56)=-11.04,p<.001,d_z=-1.48$) trends are significant. For the drug Beta, the linear trend ($t(56)=7.36,p<.001,d_z=0.98$) is significant, but the quadratic trend is not significant ($t(56)=-0.37,p=.710,d_z=-0.05$). It must be noted that we used a Bonferroni-adjusted $\alpha$-level of $.05/6=.008$ for evaluating significance for each of the six trends. The results indicate there is no significant difference between concentration levels at Baseline ($M=5.05,SE=0.21$), Week 1 ($M=6.08,SE=0.20$) and Week 2 ($M=5.49,SE=0.25$), when participants took the placebo drug. When the participants took the Alpha drug, concentration levels increased from Baseline ($M=5.06,SE=0.20$) to Week 1 ($M=7.43,SE=0.20$), but decreased dramatically going into Week 2 ($M=3.26,SE=0.24$). For the drug Beta, the concentration of participants increased linearly, going from Baseline ($M=4.74,SE=0.20$) to Week 1 ($M=6.00,SE=0.20$), and then to Week 2 ($M=7.04,SE=0.24$). These results are visually summarised in figure 1.
+
+```{r}
+apa_table(mario)
+```
+
+```{r,fig.cap="Effect of taking different LSD drugs on concentration over time"}
+
+source(here("R", "apa_legend.R"))
+ggpubr::ggline(
+  model_emm,
+  x = "session",
+  xlab = "Session",
+  y = "estimate",
+  ylab = "Concentration",
+  color = "drug",
+  palette = "grey",
+  legend.title = "Drug"
+) +
+  ggplot2::geom_errorbar(
+    aes(ymin = conf.low, ymax = conf.high, color = drug),
+    width = 0.2
+  ) +
+  # Reminder, this is a custom function you have to source. See Help Yourself
+  # Assignment 1 if you forget how to do that.
+  apa_legend(position = "right")
+
+```
+
+

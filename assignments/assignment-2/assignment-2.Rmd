@@ -1,0 +1,480 @@
+---
+title             : "Assignment 2---One-way Analysis of Variance."
+shorttitle        : "Assignment 2"
+
+params:
+  firstname  : Yudhajit
+  lastname   : Ain
+  studentid  : 30182745
+  TAs        : "Christopher Davie & Benjamin Moon"
+  show_output: FALSE
+  assignment: 2
+
+output: papaja::apa6_docx
+knit: ( function(input, ...) { source("../../R/knit.R"); knit_assignment(input, ...) })
+---
+
+```{r setup, include=FALSE}
+# set up here
+here::i_am("assignments/assignment-2/assignment-2.Rmd")
+
+# load packages
+library(here)
+library(papaja)
+library(broom)
+library(ggpubr)
+library(emmeans)
+```
+
+```{r set-chunk-opts, include=FALSE, code=xfun::read_utf8(here('R', 'chunk-opts.R'))}
+```
+
+# Question 1
+
+*From the `data` directory, please import `assignment-2_q1.csv` into R.*
+
+```{r Q1-data-import}
+# You can import the data in this chunk
+data_q1=readr::read_csv(here("data","assignment-2_q1.csv"))
+
+```
+
+*Background: Nick Fury has approached you. He wants to put together a band of superheroes who can save the universe from current and future supervillains. He needs to decide whether he should hire superheroes from the Marvel universe (1), DC comics (2), Disney Princesses (3), or Smurfs (4). Because he plans to randomly sneak up on them to invite them (rather than, you know, sending an email) he wants to choose the group with highest agreeableness scores on the HEXACO personality inventory to avoid nasty confrontations when he shows up unannounced. He brings a dataset of agreeableness scores (on a scale from 1 – 34) to you and asks you to tell him if one group has significantly higher agreeableness, and which group that is.*
+
+## Question 1a
+
+*Let’s start with exploring the data. Does your data meet the assumptions for an ANOVA? If not, describe the assumption(s) that are violated, decide how you want to address the violations and explain exactly what you did, then re-check and report on your assumptions. (4 marks) Hint: Remember ANOVA is robust to violations of assumptions only in some circumstances – are those circumstances met?*
+
+```{r}
+data_q1_dc=dplyr::filter(data_q1,group == "DC")
+data_q1_marvel=dplyr::filter(data_q1,group == "Marvel")
+data_q1_smurfs=dplyr::filter(data_q1,group == "Smurfs")
+data_q1_disney=dplyr::filter(data_q1,group == "Disney")
+
+shapiro.test(data_q1_dc$agreeableness)
+shapiro.test(data_q1_marvel$agreeableness)
+shapiro.test(data_q1_smurfs$agreeableness)
+shapiro.test(data_q1_disney$agreeableness)
+```
+
+
+```{r, fig.cap="Distribution of agreeableness for DC superheroes"}
+ggpubr::gghistogram(data=data_q1_dc,x="agreeableness",y="..count..")
+```
+
+
+```{r, fig.cap="Distribution of agreeableness for Marvel superheroes"}
+ggpubr::gghistogram(data=data_q1_marvel,x="agreeableness",y="..count..")
+```
+
+
+```{r, fig.cap="Distribution of agreeableness for Smurfs"}
+ggpubr::gghistogram(data=data_q1_smurfs,x="agreeableness",y="..count..")
+```
+
+
+```{r, fig.cap="Distribution of agreeableness for Disney princesses"}
+ggpubr::gghistogram(data=data_q1_disney,x="agreeableness",y="..count..")
+```
+
+
+```{r, fig.cap="Box-plot of agreeableness for all groups"}
+ggpubr::ggboxplot(data=data_q1,x="group",y="agreeableness", fill="grey")
+```
+
+
+```{r}
+dplyr::arrange(data_q1,agreeableness)#102dc,4smurfs
+
+data_q1_filtered=dplyr::filter(data_q1, superhero != 102 & superhero != 4)
+
+car::leveneTest(y=data_q1_filtered$agreeableness,group=data_q1_filtered$group,center=mean)
+
+data_q1_filtered_dc=dplyr::filter(data_q1_filtered,group == "DC")
+data_q1_filtered_marvel=dplyr::filter(data_q1_filtered,group == "Marvel")
+data_q1_filtered_smurfs=dplyr::filter(data_q1_filtered,group == "Smurfs")
+data_q1_filtered_disney=dplyr::filter(data_q1_filtered,group == "Disney")
+
+shapiro.test(data_q1_filtered_dc$agreeableness)
+shapiro.test(data_q1_filtered_marvel$agreeableness)
+shapiro.test(data_q1_filtered_smurfs$agreeableness)
+shapiro.test(data_q1_filtered_disney$agreeableness)
+
+var(data_q1_filtered_dc$agreeableness)
+var(data_q1_filtered_marvel$agreeableness)
+var(data_q1_filtered_smurfs$agreeableness)
+var(data_q1_filtered_disney$agreeableness)
+
+
+
+```
+
+
+Answers here. 
+
+We plotted separtae histograms to look at the distribution of agreeableness in all superhero groups (figures 1-4), and also explicitly tested normality within groups using the Shapiro-Wilk test. The distribution was significantly non-normal for both the DC and Smurfs group.
+
+Next, we made a box-plot of the agreeableness score for all groups (figure 5), to look at possible outliers. Both non-normal groups (DC and Smurfs) showed positive outliers, and they were then filtered out.
+
+After filtering, the Shapiro-Wilk normality test was repeated, and all groups had a normal distribution now. Thereafter, we did the Levene's test to test for homogeneity of variance across groups, and it revealed that the variances were not equal across all groups. However, since 1) the distributions are now all normal, 2) the sample sizes are almost equal for all groups, and finally, 3) the highest group variance (19.14 for DC) is less than 3 times the lowest variance (8.96 for Disney), the ANOVA should be fairly robust to the violation of homogeneity of variance.
+
+
+
+\newpage
+
+## Question 1b
+
+*Evaluate if the superhero groups differ on agreeableness and, if so, which groups differ. Write an APA formatted results section. (10 marks) This includes stating the hypothesis that is being evaluated, quickly reporting on assumptions (we assume independence from here on so no need for that, and only report normality and homogeneity after removing any outliers), and reporting the findings, including the omnibus test and all follow-ups (provide and reference an APA formatted figure). Hint: When reporting findings, you need to include practical significance!*
+
+# Results
+
+```{r}
+agree_model=aov(agreeableness ~ group, data = data_q1_filtered)
+broom::tidy(agree_model)
+agree_model
+
+effectsize::omega_squared(agree_model)
+
+agree_emm=emmeans::emmeans(object=agree_model,specs = "group")
+agree_emm
+
+emmeans::contrast(object=agree_emm, method="pairwise", adjust="tukey")
+
+emmeans::eff_size(
+  object=agree_emm,
+  sigma=sigma(agree_model),
+  edf=df.residual(agree_model),
+  method="pairwise"
+)
+
+mean(data_q1_filtered_dc$agreeableness)
+mean(data_q1_filtered_marvel$agreeableness)
+mean(data_q1_filtered_smurfs$agreeableness)
+mean(data_q1_filtered_disney$agreeableness)
+
+sd(data_q1_filtered_dc$agreeableness)
+sd(data_q1_filtered_marvel$agreeableness)
+sd(data_q1_filtered_smurfs$agreeableness)
+sd(data_q1_filtered_disney$agreeableness)
+
+
+
+
+```
+Answers here.
+
+# Results
+
+In order to test for any significant mean differences on agreeableness between the four groups (DC, Marvel, Disney and Smurfs), we perform a one-way ANOVA with the null hypothesis : $H_0 : \mu_{DC} = \mu_{Marvel} = \mu_{Disney} = \mu_{Smurfs}$. Agreeableness was normally distributed in all groups, DC $(W(29)=0.96,\  p=.382)$, Marvel $(W(30)=0.96,\  p=.253)$, Smurfs $(W(29)=0.96,\  p=.349)$ and Disney princesses $(W(30)=0.95,\  p=.169)$. The Levene's test for homogeneity of variance, however, was significant $(F(3,114)=2.83, \ p=.042)$, indicating unequal variance across the groups. With roughly equal sample sizes, and normality preserved within groups, we expect the ANOVA to be robust to the violation of homogeneity of variance, and so we proceed with it. The omnibus $F$-test turns out to be significant $(F(3,114)= 16.133, \ p<.001,\ \omega^2=0.28)$, suggesting that at least one group has a significantly different mean agreeableness compared to other(s). To check for which specific groups have mean agreeableness significantly different from each other, we run a full pairwise post-hoc test, with $p$-values adjusted using Tukey's HSD. The results suggest that Smurfs $(M=20.86, \ SD=4.67)$ were significantly more agreeable than DC heroes $(M=13.93, \ SD=4.37)$, $t(114)=6.31, \ p<.001, \ d=1.66$, Marvel heroes $(M=15.80,\  SD=4.50)$, $t(114)=4.65,\ p<.001, \ d=1.21$, as well as Disney princesses $(M=14.73,\ SD=2.99)$, $t(114)=5.62,\ p<.001,\ d=1.46$. A bar-plot (figure 6) summarises the results visually.
+
+```{r, fig.cap="Bar-plot of agreeableness across all groups"}
+ggpubr::ggbarplot(data=data_q1_filtered,x="group",y="agreeableness",add = "mean_ci", xlab="Group", ylab = "Agreeableness", fill="grey")
+
+```
+
+
+\newpage
+
+## Question 1c
+
+*When Nick Fury reads your results, he gets very excited---he thinks this research could be written up in the Quarterly Journal of Superheroes and Government Agencies! He notices that one group appears to be significantly different from all the other groups and suggests conducting a complex comparison instead of pairwise comparisons as follow-up tests. State how you would respond to Nick Fury. Is it wise to run a complex comparison as a follow-up in this case? Why or why not? (2 marks)*
+
+Answers here.
+
+I would suggest Nick Fury to not go ahead with the idea. Having already done, and seen the results of the pairwise comparisons, the chances of making a type-I error in the complex comparison will be highly inflated because of the hypothesis being driven by results which are already significant. If he is very keen, however, I would suggest him to use a suitable test for this, like the $F$-Scheffe's.
+
+\newpage
+
+# Question 2
+
+## Question 2a
+
+*Briefly describe how planned comparisons differ from post-hoc comparisons in terms of error? (1 mark) *
+
+Answers here.
+
+Planned comparisons are set up by the researcher(s) before having looked at the data, and is driven purely by the hypothesis and the theoretical predictions. Post-hoc comparisons, on the other hand, are done after having looked at the data visually, or after performing an omnibus $F$-test or ANOVA. As such, the chances of making a type-I error is much more likely while doing uncorrected post-hoc comparisons (since the hypothesis is informed by the data itself), as opposed to uncorrected planned comparisons.
+
+\newpage
+
+## Question 2b
+
+*What are two different types of planned comparisons (think # of groups involved) a researcher can do and what makes them different? (1 mark)*
+
+Answers here.
+
+The two kind of planned comparisons are : 1) simple (where we compare one group against another single group in the dataset), and 2) complex (where we compare a single, or combination of groups against another combination of groups).
+
+\newpage
+
+# Question 3
+
+*From the `data` directory, please import `assignment-2_q3.csv` into R.*
+
+```{r}
+
+data_q3=readr::read_csv(here("data","assignment-2_q3.csv"))
+
+```
+
+*Background: Did you know that people "research" sitcoms? For example, there are three main 'types" of sitcoms: House (surrounding a family home), Apartment (friends hanging out), and Workplace (co-worker shenanigans; see here!). Who knew, right? Now that you know this is a topic you can research, you are determined to see if different sitcoms are objectively “better” than others. You decide to recruit fellow graduate students, who are just as eager to find reasons to procrastinate, to watch three seasons of a sitcom and report on the following, very objective, measures: average laughs per episode, binge-worthiness of the show, and number of tasty snacks consumed while watching. These three variables will be summed to create one dependent variable "sitcom quality". Trust it is valid & reliable!*
+
+*Students are randomly assigned to watch one of the following sitcoms and note their measure values. The sitcoms used were:*
+
+- *Modern family (House type)*
+- *Friends (Apartment type)*
+- *Seinfeld (Apartment type)*
+- *The Office (Workplace type)*
+- *Brooklyn Nine-Nine (Workplace type)*
+
+*After your extensive background research in the area, which was definitely not just binging shows all weekend, you come up with the following three hypotheses (i.e., planned comparisons):*
+
+1. *Home types (House & Apartment) are better than Workplace types.*
+2. *Apartment types are better than House types.*
+3. *Seinfeld is better than Friends.*
+
+## Question 3a
+
+*Are all of your planned comparisons orthogonal to each other? Please justify your answers by showing the formulas/calculations for each pair. (2 marks)*
+
+Answers here.
+
+
+The contrasts, with the "sitcom" factor in the same order (top to bottom) as in the "assignment-2_q3.csv" dataset, are :
+
+contrast 1 : (1,1,1,-1.5,-1.5)
+
+contrast 2 : (-2,1,1,0,0)
+
+constrat 3 : (0,-1,1,0,0)
+
+
+
+For contrast_1 and contrast_2, the dot product =
+$$
+\begin{aligned} \\
+[1,1,1,-\frac{3}{2},-\frac{3}{2}]\cdot[-2,1,1,0,0] &= 1*(-2) + 1*1 + 1*1 + (-\frac{3}{2})*0 + (-\frac{3}{2})*0 \\
+&= -2 +1+1+0+0 \\
+&= 0 \\
+&= \mathrm{orthogonal}
+\end{aligned}
+$$
+
+For contrast_1 and contrast_3, the dot product =
+$$
+\begin{aligned} \\
+[1,1,1,-\frac{3}{2},-\frac{3}{2}]\cdot[0,-1,1,0,0] &= 1*(0) + 1*(-1) + 1*1 + (-\frac{3}{2})*0 + (-\frac{3}{2})*0 \\
+&= 0+(-1)+1+0+0 \\
+&= 0 \\
+&= \mathrm{orthogonal}
+\end{aligned}
+$$
+For contrast_2 and contrast_3, the dot product =
+$$
+\begin{aligned} \\
+[-2,1,1,0,0]\cdot[0,-1,1,0,0] &= (-2)*(0) + 1*(-1) + 1*1 + 0*0 + 0*0 \\
+&= 0+(-1)+1+0+0 \\
+&= 0 \\
+&= \mathrm{orthogonal}
+\end{aligned}
+$$
+Thus, all three comparisons are mutually orthogonal.
+
+\newpage
+
+## Question 3b
+
+*Explain why your planned comparisons are not a complete/full orthogonal set? State additional hypothesis(es)---in words and contrast codes---that could be used to complete the set. No need to show formulas/calculations for the new hypothesis. (1 mark)*
+
+Answers here.
+
+The number of groups (sitcoms) in our dataset = $k$ = 5. We know that the number of orthogonal contrasts that make up a complete orthogonal set for a model with $k$ groups, is $k-1$. Here, that is four contrasts to make up a complete set. We already have three. 
+
+The last contrast that would complete the set is contrast 4 = (0,0,0,-1,1). This contrast essentially tests the hypothesis that Brooklyn Nine-Nine is better than The Office.
+
+
+\newpage
+
+## Question 3c
+
+*Write an APA results section that includes the following: (11 marks total, see below for breakdown):*
+
+1. *Brief report of assumptions (No need to clean the data this time, aside from assumption checking. PLEASE DO NOT REMOVE ANY DATA FOR THIS ASSIGNMENT!) (1 mark)*
+2. *Omnibus results (as is tradition, and including effect size) (1 mark)*
+3. *The planned comparisons from Questions 3a and 3b (including means and SD that relate to the “groups” being compared and appropriate effect sizes) (8 marks)*
+4. *Appropriate figures visualizing each hypothesis (3 marks).*
+
+```{r}
+
+# Filter individual groups
+
+data_q3_modfam=dplyr::filter(.data=data_q3, sitcom == "Modern Family")
+data_q3_friends=dplyr::filter(.data=data_q3, sitcom == "Friends")
+data_q3_seinfeld=dplyr::filter(.data=data_q3, sitcom == "Seinfeld")
+data_q3_office=dplyr::filter(.data=data_q3, sitcom == "The Office")
+data_q3_b99=dplyr::filter(.data=data_q3, sitcom == "Brooklyn Nine-Nine")
+
+# Make the combined groups for complex comparisons
+
+data_q3_home=rbind.data.frame(data_q3_modfam,data_q3_seinfeld,data_q3_friends)
+data_q3_work=rbind.data.frame(data_q3_office,data_q3_b99)
+data_q3_apartment=rbind.data.frame(data_q3_friends,data_q3_seinfeld)
+
+# Within-group normality tests
+
+shapiro.test(data_q3_modfam$sitcom_quality)
+shapiro.test(data_q3_friends$sitcom_quality)
+shapiro.test(data_q3_seinfeld$sitcom_quality)
+shapiro.test(data_q3_office$sitcom_quality)
+shapiro.test(data_q3_b99$sitcom_quality)
+
+# Levene's test
+
+car::leveneTest(y=data_q3$sitcom_quality,group=data_q3$sitcom,center=mean)
+
+# Omnibus/ANOVA
+sitcom_model=aov(sitcom_quality ~ sitcom, data=data_q3)
+broom::tidy(sitcom_model)
+effectsize::omega_squared(sitcom_model)
+
+# Set contrasts
+
+sitcom_emm=emmeans::emmeans(object=sitcom_model,specs="sitcom")
+
+c1=c(1,1,1,-1.5,-1.5)
+c2=c(-2,1,1,0,0)
+c3=c(0,-1,1,0,0)
+c4=c(0,0,0,-1,1)
+
+data_q3=dplyr::mutate(data_q3,sitcom=forcats::as_factor(sitcom))
+
+contrasts(data_q3$sitcom)=cbind(c1,c2,c3,c4)
+#contrasts(data_q3$sitcom)
+
+# Perform planned comparisons
+
+sitcom_contrast=emmeans::contrast(
+  sitcom_emm,
+  method=list("Home - Workplace"=c1, "Apartment - House"=c2, "Seinfeld - Friends"=c3 , "Brooklyn Nine-Nine - The Office"=c4),
+  adjust="bonferroni"
+  )
+#sitcom_contrast
+
+sitcom_contrast=broom::tidy(sitcom_contrast)
+
+# Find contrast effect-sizes
+
+contrast_sum=colSums(abs(contrasts(data_q3$sitcom)))
+
+sitcom_contrast=dplyr::mutate(
+  sitcom_contrast, 
+  effect.size=(2*estimate)/(sigma(sitcom_model)*contrast_sum))
+
+sitcom_contrast
+
+mean(data_q3_home$sitcom_quality)
+sd(data_q3_home$sitcom_quality)
+mean(data_q3_work$sitcom_quality)
+sd(data_q3_work$sitcom_quality)
+mean(data_q3_apartment$sitcom_quality)
+sd(data_q3_apartment$sitcom_quality)
+
+mean(data_q3_modfam$sitcom_quality)
+sd(data_q3_modfam$sitcom_quality)
+mean(data_q3_seinfeld$sitcom_quality)
+sd(data_q3_seinfeld$sitcom_quality)
+mean(data_q3_friends$sitcom_quality)
+sd(data_q3_friends$sitcom_quality)
+mean(data_q3_office$sitcom_quality)
+sd(data_q3_office$sitcom_quality)
+mean(data_q3_b99$sitcom_quality)
+sd(data_q3_b99$sitcom_quality)
+
+```
+Answers here.
+
+# Results
+
+We wanted to test if there were any significant differences between the mean sitcom quality of the five sitcoms (groups) in our dataset. To do this, we have to first perform a one-way ANOVA. We check for normality within each group (sitcom), and find that the quality ratings for all of them, Modern Family $(W(25)=0.95,\ p=.239)$, Friends $(W(25)=0.94,\ p=.197)$, Seinfeld $(W(25)=0.94,\ p=.178)$, The Office $(W(25)=0.97,\ p=.643)$, and Brooklyn Nine-Nine $(W(25)=0.95,\ p=.249)$ were normally distributed. To check for homogeneity of variance across the groups, we perform the Levene's Test, and the result suggests equality of variance across groups $(F(4,120)=1.52,\ p=.199)$. With all assumptions met, we proceed to perform the one-way ANOVA. The results of the ANOVA suggest that indeed, at least one of the sitcoms has a mean quality rating that is significantly different from the others $(F(4,120)=11.04,\ p<.001,\ \omega^2=0.24))$. Figure 7 summarises the analysis visually.
+
+We then proceed to test our own hypotheses through planned comparisons. To compensate for multiple comparisons, we use the Bonferroni adjusted $p$-values. The result of the first comparison suggests that there is no significant difference in the quality of Home-type sitcoms $(M=17.41,\ SD=3.87)$ compared to Workplace-type sitcoms $(M=16.52,\ SD=2.87)$, $t(120)=1.60,\ p=.449,\ d=0.29$. This is seen in figure 8. The second comparison reveals that Apartment-type sitcoms $(M=18.12,\ SD=3.91)$ were rated as having significantly better quality than House-type sitcoms $(M=16.00,\ SD=3.43)$, $t(120)=2.83,\ p=.022,\ d=0.69$. This is illustrated in figure 9. The third comparison reveals that the quality of Seinfeld $(M=15.92,\ SD=3.53)$ is rated significantly lower than that of Friends $(M=20.32,\ SD=2.94)$, $t(120)=-5.08,\ p<.001,\ d=-1.44$. This can be seen in figure 10. Finally, the fourth comparison suggests that the quality of Brooklyn Nine-Nine $(M=17.72,\ SD=2.28)$ is rated significantly higher than that of The Office $(M=15.32,\ SD=2.94)$, $t(120)=2.77,\ p=.026,\ d=0.78$. Figure 11 summarizes this visually.
+
+```{r,fig.cap="bar-plot comparing mean sitcom quality across all sitcoms"}
+ggpubr::ggbarplot(data = data_q3,x="sitcom",y="sitcom_quality", add = "mean_ci", xlab="Group", ylab="Quality", fill="grey")
+```
+
+
+```{r,fig.cap="Bar-plot comparing mean sitcom quality between Home type and Workplace type sitcoms"}
+ggpubr::ggbarplot(data = data_q3,x="q2a_h1",y="sitcom_quality", add = "mean_ci", xlab="Group", ylab="Quality", fill="grey")
+```
+
+
+```{r,fig.cap="Bar-plot comparing mean sitcom quality between House type and Apartment type sitcoms"}
+ggpubr::ggbarplot(data = data_q3_home,x="q2a_h2",y="sitcom_quality", add = "mean_ci", xlab="Group", ylab="Quality", fill="grey")
+```
+
+
+```{r,fig.cap="Bar-plot comparing mean sitcom quality between Seinfeld and Friends"}
+ggpubr::ggbarplot(data = rbind.data.frame(data_q3_friends,data_q3_seinfeld),x="sitcom",y="sitcom_quality", add = "mean_ci", xlab="Group", ylab="Quality", fill="grey")
+```
+
+
+```{r,fig.cap="Bar-plot comparing mean sitcom quality between The Office and Brooklyn Nine-Nine"}
+ggpubr::ggbarplot(data = rbind.data.frame(data_q3_office,data_q3_b99),x="sitcom",y="sitcom_quality", add = "mean_ci", xlab="Group", ylab="Quality", fill="grey")
+```
+
+\newpage
+
+## Question 3d
+
+*A graduate student who participated in your study liked your sitcom research idea and wants to use your same study design but doesn’t like the planned comparisons you chose and wants you to provide suggestions on what they could do (apparently they don’t want to do any work). Without repeating any of the three planned comparisons you originally did for your hypotheses, what are TWO complete/full orthogonal sets (distinct from each other as well), in both words and contrast codes, that this other graduate student could do? (2 marks)*
+
+*Note 1. The actual comparisons themselves need to be different, not just the codes. For example, (1,-1,0) is not different from (2,-2,0) or (-1,1,0).*
+
+*Note 2. You don’t need any kind of home/apartment theory to justify your comparisons here. It is just about orthogonality!*
+
+Answers here.
+
+First set:
+
+
+contrast 1 = [-1,-1,-1,-1,4] (Brooklyn Nine-Nine is better than all other sitcoms)
+
+contrast 2 = [-1,-1,-1,3,0] (The Office is better than all Home type sitcoms)
+
+contrast 3 = [-1,-1,2,0,0] (Seinfeld is better than Modern Family and Friends)
+
+contrast 4 = [-1,1,0,0,0] (Friends is better than Modern Family)
+
+
+
+Second set:
+
+
+contrast 1 = [-1,-1,4,-1,-1] (Seinfeld is better than all other sitcoms)
+
+contrast 2 = [-1,-1,0,3,-1] (The Office is better than Modern Family, Friends, and Brooklyn Nine-Nine)
+
+contrast 3 = [-1,2,0,0,-1] (Friends is better than Modern Family and Brooklyn Nine-Nine)
+
+contrast 4 = [-1,0,0,0,1] (Brooklyn Nine-Nine is better than Modern Family)
+
+
+\newpage
+
+# Bonus
+
+*You have two planned comparisons’ vectors: [-1,-1,2] and [-1,0,1]. What is the angle between these two vectors (in degrees) and what does this mean for their variance? (.5 BONUS mark)*
+
+$$
+Let\ \mathbf{A} = [-1,-1,2]\ and\ \mathbf{B}=[-1,0,1].\\
+Then,\ the \ angle \ (\theta) \ between \ \mathbf{A} \ and \ \mathbf{B} \ = cos^{-1}(\frac{\mathbf{A}\cdot \mathbf{B}}{|\mathbf{A}|*|\mathbf{B}|}).\\
+\begin{align}
+Therefore, \theta &= cos^{-1}\{\frac{(-1)*(-1) + (-1)*0 + 2*1}{\sqrt{(-1)^2+(-1)^2+2^2}*\sqrt{(-1)^2+0^2+(1)^2}}\\
+&= cos^{-1}(\frac{1 + 0 + 2}{\sqrt{6}*\sqrt{2}})\\
+&= cos^{-1}(0.866)\\
+&= 30^{\circ}
+\end{align}
+$$
+
+The fact that the angle between the the two contrast vectors is not $\pi/2$ radians means that they are not orthogonal. This means that the variance explained by the two contrasts is overlapping, and not independent.

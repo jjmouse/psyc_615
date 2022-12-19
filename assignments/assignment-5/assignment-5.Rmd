@@ -1,0 +1,229 @@
+---
+title             : "Assignment 5---Within Subjects and Higher Order ANOVA & Trend Analysis."
+shorttitle        : "Assignment 5"
+
+params:
+  firstname  : Yudhajit
+  lastname   : Ain
+  studentid  : 0123456789
+  TAs        : "Benjamin Moon & Christopher Davie"
+  show_output: FALSE
+  assignment: 5
+
+output: papaja::apa6_docx
+knit: ( function(input, ...) { source("../../R/knit.R"); knit_assignment(input, ...) })
+---
+
+```{r setup, include=FALSE}
+# set up here
+here::i_am("assignments/assignment-5/assignment-5.Rmd")
+
+# load packages
+library(here)
+library(papaja)
+library(afex)
+library(effsize)
+library(ggpubr)
+library(broom)
+```
+
+```{r set-chunk-opts, include=FALSE, code=xfun::read_utf8(here('R', 'chunk-opts.R'))}
+```
+
+# Question 1
+
+*From the `data` directory, please import `assignment-5_q1.csv` into R.*
+
+```{r}
+data=readr::read_csv(here("data","assignment-5_q1.csv"),
+                     col_types = "fffd")
+```
+
+*Background: We are interested in the effect of drinking beer and smoking marijuana on object recall over the course of three days. We collected data from 12 lucky participants who had nothing to do for two weeks. The participants were given a randomly selected set of objects (from a larger potential pool of objects) to memorize at the beginning of two separate weeks of testing. The day after memorization participants were provided either marijuana (1 brownie) or beer (4 pints) and asked to perform an object recall task. The recall task was administered for three consecutive days after administration of the beer/marijuana. The following week the participants performed the same task (based on a new set of randomly selected objects) for the substance that they were not tested on the week previously (i.e. 6 participants were provided beer the first week, marijuana the second week and vice versa).*
+
+*We hypothesize that there will be a significant effect of substance type and day, with no significant interaction. Furthermore, we hypothesize that object recall will be significantly worse on the last day in both substance conditions, compared to the first and second days (separately). Perform the analyses on your data and answer the questions below.*
+
+```{r}
+
+# Tests for normality
+d1 = dplyr::filter(data,drug=="Marijuana")
+d1d1=tidy(shapiro.test(dplyr::filter(d1,day=="One")$recall))
+d1d2=tidy(shapiro.test(dplyr::filter(d1,day=="Two")$recall))
+d1d3=tidy(shapiro.test(dplyr::filter(d1,day=="Three")$recall))
+d2 = dplyr::filter(data,drug=="Beer")
+d2d1=tidy(shapiro.test(dplyr::filter(d2,day=="One")$recall))
+d2d2=tidy(shapiro.test(dplyr::filter(d2,day=="Two")$recall))
+d2d3=tidy(shapiro.test(dplyr::filter(d2,day=="Three")$recall))
+mario = rbind(d1d1,d1d2,d1d3,d2d1,d2d2,d2d3)
+mario = cbind(tibble::tribble(~Group,"Marijuana, Day 1","Marijuana, Day 2","Marijuana, Day 3","Beer, Day 1","Beer, Day 2","Beer, Day 3"), dplyr::select(mario,1), tibble::tribble(~df,"12","12","12","12","12","12"), dplyr::select(mario,2))
+colnames(mario) = c("Group","Shapiro-Wilk's W","df","Significance")
+
+# Set day contrasts 
+c1=c(1,0,-1)
+c2=c(0,1,-1)
+c = cbind(c1,c2)
+contrasts(data$day) = c
+
+# Run full ANOVA
+model <- afex::aov_car(
+  recall ~ drug * day + Error(id/(drug*day)),
+  type = 3,
+  data = data
+)
+
+# See full output (with sphericity tests)
+summary(model)
+effectsize::omega_squared(model)
+cat("\n")
+
+# Do planned comparisons and post-hoc follow-ups
+model_emm_day = emmeans::emmeans(model,specs="day")
+model_emm_drug = emmeans::emmeans(model,specs="drug")
+
+model_emm_day
+model_emm_drug
+
+model_emm_day_contrast = emmeans::contrast(
+  model_emm_day,
+  method = list("Day 1 - Day 3"=c1, "Day 2 - Day 3"=c2),
+  adjust = "bonferroni",
+  infer = TRUE
+)
+
+model_emm_day_contrast=dplyr::mutate(broom::tidy(model_emm_day_contrast),
+                                     d_z = statistic/sqrt(df+1))
+
+model_emm_day_contrast
+
+
+
+
+# t.test(recall~day,data=dplyr::filter(d1,day=="One" | day=="Three"),paired=TRUE)
+# t.test(recall~day,data=dplyr::filter(d1,day=="Two" | day=="Three"),paired=TRUE)
+# t.test(recall~day,data=dplyr::filter(d2,day=="One" | day=="Three"),paired=TRUE)
+# t.test(recall~day,data=dplyr::filter(d2,day=="Two" | day=="Three"),paired=TRUE)
+
+
+```
+
+
+## Question 1a
+
+*Why do we need to test for Sphericity? What part of the ANOVA is corrected when we have a violation of sphericity and how does this influence our p value (2 marks)? *
+
+The assumption of sphericity (for WS-ANOVA) stands in for the assumptions of independence and homogeneity of variance (for BS-ANOVA). Violations of sphericity can lead to inflated F-ratio estimates, making type-I errors more likely. The degrees of freedom for the critical-$F$ value is adjusted with multiplication by the appropriate $\varepsilon$ when there is violation of sphericity. This decreases the critical $p$-value (or $\alpha$-threshold) for significance, and reduces power, compared to the sphericity-assumed estimate.
+
+\newpage
+
+## Question 1b
+
+*Why is one of Mauchly’s W statistic and p-value missing from your output (1 mark)?*
+
+Mauchly's test for sphericity is missing for the within-subjects variable drug because there were only two levels. There must be at least three levels for Mauchly's test to be applicable.
+
+\newpage
+
+## Question 1c
+
+*Based on the Mauchly’s test output, would you proceed with the planned contrasts required to test the hypotheses? Why or why not? (2 marks). Hint: You must provide reasoning for each of the main effects to receive full marks.*
+
+We find significant main effects of both drug and day, and there is no significant violation of sphericity for any of the within-subjects variables, or the interaction between them.  Hence, we can safely proceed with the planned contrasts probing the differences between levels of day. As for drug, it has only two levels, and hence neither does the assumption of sphericity apply to it, nor do we need further follow-ups after the omnibus-ANOVA to know the direction of mean difference.
+
+\newpage
+
+## Question 1d
+
+*What is the best option for a follow-up test when sphericity is violated (1 mark)?*
+
+The best option for follow-up tests when sphericity is violated is to do trend-analysis, since trend-analysis does not assume sphericity. 
+
+\newpage
+
+## Question 1e
+
+*Write an APA formatted results section (10 marks). This includes:*
+
+- *A quick report on the assumptions of normality and sphericity. Hint: you may want to use tables to report these results – if you do, make sure they are APA formatted and that you refer to them in your results section.*
+- *reporting the omnibus ANOVA main effects and interaction.*
+- *interpreting/reporting appropriate main or simple main effects and follow-up tests.*
+- *An APA formatted figure (referenced in text).*
+- *Include effect sizes where needed (partial eta-squared is okay).*
+
+# Results
+
+To test if there is a significant effect of drug type or day on participants' memory recall performance, we decide to run a two-way within-subjects ANOVA ($N=12$). To make sure the assumption of normality was satisfied for all combinations of levels of our independent variables, we perform a Shapiro-Wilk's test for every possible combination. The results (table 1) indicate that all groups were normally distributed. We also test for sphericity of the within-subjects variable day, as well as the interaction between day and drug. The Mauchly's test for sphericity confirmed that there was no significant violation of sphericity for either day ($W(22)=0.98,p=.924,\varepsilon_{GG}=.98$) or the interaction between day and drug ($W(22)=0.98,p=.916,\varepsilon_{GG}=.98$). With all assumptions met, we run the omnibus-ANOVA, and find that there is no significant interaction between day and drug ($F(2,22)=0.09,p=.914,\omega^2_p=.00$). There is however a significant main effect of Drug ($F(1,11)=41.96,p<.001,\omega^2_p=.09$), such that the memory recall performance of participants was better for Beer ($M=43.20, SE=2.61$) compared to Marijuana ($M=36.9, SE=3.11$) across all days. There is also a significant main effect of day ($F(2,22)=549.73,p<.001,\omega^2_p=.40$) on participants' memory recall performance. To follow up on the main effect of day, we run our planned contrasts, each at a Bonferroni-corrected $\alpha$-level of $.05/2=.025$, since we test two contrasts. We find that memory recall performance for day 3 ($M=28.8, SE=2.76$) is worse than both day 1 ($M=47.8,SE=3.02$) ($t(11)=-29.88,p<.001,d_z=-8.62$), and day 2 ($M=43.6,SE=2.75$) ($t(11)=-25.92,p<.001,d_z=-7.48$), across drugs administered (beer or marijuana). These results are visually summarised in figure 1.
+
+```{r}
+apa_table(mario)
+```
+
+
+```{r, fig.cap="Effect of drinking beer and smoking marijuana on object recall over the course of three days"}
+
+model_emm = emmeans::emmeans(model,specs="day",by="drug")
+model_emm = broom::tidy(model_emm, conf.int = TRUE)
+source(here("R", "apa_legend.R"))
+ggpubr::ggline(
+  model_emm,
+  x = "day",
+  xlab = "Day",
+  y = "estimate",
+  ylab = "Recall Score",
+  color = "drug",
+  palette = "grey",
+  legend.title = "Drug"
+) +
+  ggplot2::geom_errorbar(
+    aes(ymin = conf.low, ymax = conf.high, color = drug),
+    width = 0.2
+  ) +
+  # Reminder, this is a custom function you have to source. See Help Yourself
+  # Assignment 1 if you forget how to do that.
+  apa_legend(position = "right")
+
+
+```
+
+
+\newpage
+
+# Question 2
+*
+
+*Brittany, a mouthy celiac, had concerns that Kelsey’s experiment from Question 1 (refresh background if needed; 3 [days] x 2 [substance] within-subjects design) was not inclusive for everyone with dietary restrictions (“Beer is full of gluten you know!!”) and decided to replicate the study with a higher quality of marijuana and gluten free alcoholic cider (i.e., a different dataset from Question 1).*
+
+## Question 2a
+
+*The participants were in this study for a total of six days (3 days of marijuana and 3 days of cider). Would it be appropriate to analyze one trend across all six of these days in total? Why or why not? (1 mark)*
+
+It is not appropriate to analyze a single trend across all six days because:
+
+1. A trend analysis will treat the day number (1 to 6) as an ordinal variable. This will imply that day 4 is greater than day 1, day 5 is greater than day 2, and day 6 is greater than day 3. This would be desirable only if we were looking at an effect of being on drugs over days (irrespective of what drug) on memory recall. However, here we are interested in the effects of two separate independent variables (drug and day) on memory recall, and such a trend may be confounded by the  effect of drug.
+
+2. Going from day 3 to day 4, there may be a systematic effect of switching from one drug to another - an effect we are not interested in, but which will affect the results of the trend analysis.
+
+\newpage
+
+## Question 2b
+
+*During the analysis, Brittany found a significant trend interaction between day and substance (alpha level of .05). Referencing Figure 1 and statistics from the SPSS output below, report and describe the appropriate trend for each substance (in APA format) with any necessary corrections. (5 marks)*
+
+# Results
+
+Since there is a significant interaction between day and drug, Brittany decided to look at the simple main effect of day at each level of drug separately, using two separate sets of trend analyses. From the results of the trend analyses, we infer that when participants smoke marijuana, there is a significant quadratic trend in the effect of day on memory recall ($F(1,11)=188.77,p<.001,\eta^2_p=.94$), evaluating at an $\alpha$-level of .025). Specifically, when they smoked marijuana, there was a bigger decrease in memory recall performance going from day 1 ($M=44.75, SD=16.30, N=12$) to day 2 ($M=29.83,SD=15.39,N=12$), than there was going from day 2 to day 3 ($M=25.25,SD=15.12,N=12$). We also infer that when participants drank cider, there is a significant negative linear trend in the effect of day on memory recall  ($F(1,11)=222.76,p<.001,\eta^2_p=.95$). Specifically, when they drank cider, memory recall performance decreased consistently going from day 1 ($M=47.33,SD=14.94,N=12$) to day 2 ($M=39.58,SD=14.51,N=12$) and on to day 3 ($M=30.58,SD=15.44,N=12$). These results are visually summarised in figure 1.
+
+```{r}
+knitr::include_graphics(here("images", "assignment-5_2b-tables.png"))
+```
+
+```{r}
+knitr::include_graphics(here("images", "assignment-5_2b-plot.png"))
+```
+
+\newpage
+
+# Bonus
+
+*For Question 2, could we statistically compare the most appropriate trend found for marijuana and the most appropriate trend found for alcohol? Explain why or why not.*
+
+The significant trend in the effect of day for marijuana is quadratic, whereas the significant trend in the effect of day for cider is linear. Since the two significant trends are not of the same polynomial order, there is no meaningful way we can statistically compare the two trends (except looking at their effect sizes).

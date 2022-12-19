@@ -1,0 +1,400 @@
+---
+title             : "Assignment 1---Assumptions and T-Tests."
+shorttitle        : "Assignment 1"
+
+params:
+  firstname  : Yudhajit
+  lastname   : Ain
+  studentid  : 30182745
+  TAs        : "Benjamin Moon & Christopher Davie"
+  show_output: FALSE
+  assignment : 1
+
+output: papaja::apa6_docx
+knit: ( function(input, ...) { source("../../R/knit.R"); knit_assignment(input, ...) })
+---
+
+```{r setup, include=FALSE}
+# Set up the here package
+here::i_am("assignments/assignment-1/assignment-1.Rmd")
+
+# Load packages
+library(here)
+library(papaja)
+library(tidyverse)
+library(ggpubr)
+library(dplyr)
+library(datawizard)
+# Note: We have added the code to load a few packages for you, but you might
+# need to add code to load some more to complete the assignment. See this
+# assignment's Help Yourself for what you will need.
+
+# Load scripts
+source(here("R", "shapiro_test.R"))
+# Note: If you create any plots with legends in this assignment you might need
+# to source the script for the custom APA legend function mentioned in this
+# assignment's Help Yourself.
+```
+
+```{r chunk-opts, include=FALSE, code=xfun::read_utf8(here('R', 'chunk-opts.R'))}
+```
+
+# Question 1
+
+*Because it's fun (or rather, educational), you will be experimenting with making your own datasets. Please include your final data points under each question; no need for an APA formatted table, listing them is fine!*
+
+## Question 1a
+
+*Make a positively skewed distributed (i.e., NOT normal) set of 18 participants on a fictitious variable (think of a variable that makes sense with the numbers). Report your variable's mean and SD. Report and interpret the skewness numerical measure and an appropriate statistical test of normality. (3 marks)*
+
+```{r question-1a, fig.cap="Distribution of 15 samples"}
+# You can create your data set in this code chunk. See the Assignment 1 Help
+# Yourself for details on how you can do this.
+
+# After creating your data set you can calculate descriptive statistics and run
+# the appropriate statistical test for here
+
+# Note: You will need to create code chunks yourself for the remaining
+# questions in this assignment. You may even want to make more code chunks for
+# this question. The keyboard shortcut to do this is:
+# Mac: Cmd + Option + I
+# Windows: Ctrl + Alt + I
+# You can find other useful keyboard shortcuts in the RStudio IDE cheat sheet
+# in the `cheatsheets` directory.
+
+# Note 2: You can delete all the comments in this chunk after reading them if
+# you like.
+
+
+#lines 71-84 were run repeatedly till a desirable 15-participant distribution with positive skew, but not statistically significant non-normality (Shapiro-Wilk's not significant) was obtained. This was saved as "Q_1a_data_15.csv", and line 71 and 74 then commented out. After this, 3 values were manually added to the right-tail of the distribution to achieve statistically-significant Shapiro-Wilk's test, with positive skewness, and saved as "Q_1a_data.csv" )
+
+#data_1a=tibble::tibble(participant_number=1:15,age=rnorm(15,20,2))
+
+data_1a=read.csv(here::here("assignments","assignment-1","Q_1a_data_15.csv"))
+#write.csv(data_1a,here::here("assignments","assignment-1","Q_1a_data_15.csv"))
+
+
+ggpubr::gghistogram(data_1a,x="age",y="..count..",bins=9)
+
+paste("mean=",mean(data_1a$age),sep="")
+paste("median=",median(data_1a$age),sep="")
+paste("SD=",sd(data_1a$age),sep="")
+
+datawizard::skewness(data_1a$age)
+shapiro.test(data_1a$age)
+
+```
+
+
+```{r question-1a2, fig.cap="Distribution of 16 samples"}
+
+#adding three more elements to the right tail, one by one
+
+data_1a_added=tibble::add_row(.data=data_1a,participant_number=16,age=23.5)
+ggpubr::gghistogram(data_1a_added,x="age",y="..count..",bins=9)
+datawizard::skewness(data_1a_added$age)
+shapiro.test(data_1a_added$age)
+```
+
+
+```{r question-1a3, fig.cap="Distribution of 17 samples"}
+
+data_1a_added=tibble::add_row(.data=data_1a_added,participant_number=17,age=24.6)
+ggpubr::gghistogram(data_1a_added,x="age",y="..count..",bins=9)
+datawizard::skewness(data_1a_added$age)
+shapiro.test(data_1a_added$age)
+```
+
+
+```{r question-1a4, fig.cap="Distribution of 18 samples"}
+
+data_1a_added=tibble::add_row(.data=data_1a_added,participant_number=18,age=26.7)
+ggpubr::gghistogram(data_1a_added,x="age",y="..count..",bins=9)
+datawizard::skewness(data_1a_added$age)
+shapiro.test(data_1a_added$age)
+
+#display the dataset simulated 
+
+data_1a_added[,c("participant_number","age")]
+
+paste("mean=",mean(data_1a_added$age),sep="")
+paste("median=",median(data_1a_added$age),sep="")
+paste("SD=",sd(data_1a_added$age),sep="")
+
+#write.csv(data_1a_added,here::here("assignments","assignment-1","Q_1a_data.csv"))
+
+```
+
+## ANSWER
+
+We first make a normal distribution of 15 samples repeatedly, till we get a distribution with positive skewness, but not significantly non-normal according to the Shapiro-Wilk's test ($W$(15)=0.91, $p$=.12). This is saved as "Q_1a_data_15.csv". Then, we add three large values closer to the right tail of the distribution to give it a significantly non-normal positive skew. This is saved as Q_1a_data.csv, and displayed on the console. For this final simulated sample of 18 graduate students (participants), mean age was $M$=20.65 years, and the standard deviation ($SD$) was 2.57 years.
+
+The skewness value for age is 1.03, implying positive skewness, with mean > median. Shapiro-Wilk's test ($W$(18)=0.89, $p$=.04) confirms the distribution is non-normal by rejecting the null hypothesis at $p$<.05.
+
+\newpage
+
+## Question 1b
+
+*Now, create a normally distributed dataset (n = 18), with the same mean and standard deviation from 1a. (as close as possible, and cannot be more than 10% - 20% difference from either the mean or the SD). Report your mean and SD. Report and interpret the skewness numerical measure and an appropriate statistical test of normality. (3 marks)*
+```{r}
+
+# We directly fed the mean and standard deviation of the dataset in Q1a to an rnorm() function to #get the required dataset for Q1b. Once obtained, the dataset was saved as "Q_1b_data.csv", and #the lines 143 and 147 were commented out.
+
+#data_1b=tibble::tibble(participant_number=1:18,age=rnorm(18,mean(data_1a_added$age),sd(data_1a_added$age)))
+
+data_1b=read.csv(here::here("assignments","assignment-1","Q_1b_data.csv"))
+
+#write.csv(data_1b,here::here("assignments","assignment-1","Q_1b_data.csv"))
+
+h1=ggpubr::gghistogram(data_1b,x="age",y="..count..",bins=9)
+
+data_1b[,c("participant_number","age")]
+
+paste("mean=",mean(data_1b$age,sep=""))
+paste("median=",median(data_1b$age,sep=""))
+paste("SD=",sd(data_1b$age),sep="")
+
+datawizard::skewness(data_1b$age)
+shapiro.test(data_1b$age)
+```
+
+
+## ANSWER
+
+For this new sample of 18 graduate students (participants), mean age was $M$=20.40 years, and the standard deviation ($SD$) was 2.95 years. The dataset has been saved as Q_1b_data.csv, and displayed on the console
+
+The skewness value for age is -1.27, implying negative skewness (more data points towards the left tail of the distribution than normal, with mean > median). Shapiro-Wilk's test ($W$(18)=0.90, $p$=.061), however, fails to reject the null-hypothesis of normal distribution at $p$<0.05.
+
+\newpage
+
+# Question 2
+
+*From the `data` directory, please import `assignment-1_q2.csv` into R.*
+
+```{r Q2-dataset}
+# You can read the data in this chunk. For this first assignment we have
+# written the code for you.
+exams <- read_csv(here("data", "assignment-1_q2.csv"))
+```
+
+*Background: Imagine you are a TA for an undergrad statistics course (or maybe you are now!) and your students just finished their first statistics exam of the year. You, a clever statistical student yourself, decided to record the following variables from the students: age, gender (1 = female, 2 = male), how many hours they study per week, their love of statistics (1 to 10 scale), and their heart rate both before the exam and after the exam (normal range is 60-100 for adults). You are now ready to investigate!*
+
+## Question 2a
+
+*Briefly describe why independence is important for analyses that assume it (1 mark). Give one potential limitation of why this sample (i.e., the students) might not be independent? (1 mark)*
+
+Answers here.
+
+Independence of samples is important for most statistical analyses since it preserves "randomness" of the variable. Independent sampling is also key to making sure our distribution falls in line with the central limit theorem, which is itself the basis of most mathematical formulae employed in statistical hypothesis testing
+
+The observations in this current sample may not be independent since students who choose to take up an undergraduate degree (and a statistics course) may already be biased towards higher study-hours or love-for-statistics measures.
+\newpage
+
+## Question 2b
+
+*First things first: explore your data set as a whole. Do you see any "weirdness" in any of the continuous variables (i.e., age, study, love, heart rates)? Explain what the weirdness is (including participant \#s) and justify why you think it is weird for each instance (i.e., with visuals, statistics, etc.). With this information, would you remove any participants/data points from the future analyses? Why or why not? (5 marks)*
+
+*Hint: Read the variable descriptions above.*
+
+*Note 1: Please only include the relevant information here (we don't need a novel). Just point out the glaring issues (you'll see them we hope). Please don't transform the data or anything drastic like that if there is skewness or something like that!*
+
+*Note 2. If you say that certain participants/data should be removed from the analyses, please do that for the remainder of the questions!*
+```{r, fig.cap="Boxplot of age grouped by gender"}
+ggpubr::ggboxplot(exams,xlab = "Gender",x="gender",y="age")
+paste("SD=",sd(exams$age))
+paste("mean=",mean(exams$age))
+a1=dplyr::arrange(exams,age)
+#remove outlier with age=67, strong outlier (>3 SD above mean age)
+exams_filtered=dplyr::filter(.data=exams, student != 50)
+```
+
+
+```{r, fig.cap="Boxplot of heart_rate_after grouped by gender"}
+ggpubr::ggboxplot(exams_filtered,xlab = "Gender",x="gender",y="heart_rate_after")
+paste("SD=",sd(exams_filtered$heart_rate_after))
+paste("mean=",mean(exams_filtered$heart_rate_after))
+a2=dplyr::arrange(exams_filtered,heart_rate_after)
+#remove outlier with heart_rate_after=158, strong outlier (>3 SD above mean heart_rate_after)
+exams_filtered=dplyr::filter(.data=exams_filtered, student != 40)
+```
+
+
+```{r, fig.cap="Boxplot of love_Of_stats grouped by gender"}
+ggpubr::ggboxplot(exams_filtered,xlab = "Gender",x="gender",y="love_of_stats")
+paste("SD=",sd(exams_filtered$love_of_stats))
+paste("mean=",mean(exams_filtered$love_of_stats))
+```
+
+
+```{r, fig.cap="Boxplot of heart_rate_before grouped by gender"}
+ggpubr::ggboxplot(exams_filtered,xlab = "Gender",x="gender",y="heart_rate_before")
+paste("SD=",sd(exams_filtered$heart_rate_before))
+paste("mean=",mean(exams_filtered$heart_rate_before))
+```
+
+
+```{r, fig.cap="Boxplot of study_per_week grouped by gender"}
+ggpubr::ggboxplot(exams_filtered,xlab = "Gender",x="gender",y="study_per_week")
+paste("SD=",sd(exams_filtered$study_per_week))
+paste("mean=",mean(exams_filtered$study_per_week))
+
+```
+
+
+```{r, fig.cap="Distribution of love_of_stats"}
+#Checking the skewness, normality and distribution of all variables one by one
+
+ggpubr::gghistogram(exams_filtered,x="love_of_stats",y="..count..",bins=7)
+a3=dplyr::arrange(.data=exams_filtered,love_of_stats)
+#Student 9 is removed from dataset because love_of_stats cannot be greater than 10.
+exams_filtered=dplyr::filter(.data=exams_filtered, student != 9)
+
+datawizard::skewness(exams_filtered$love_of_stats)
+shapiro.test(exams_filtered$love_of_stats)
+```
+
+
+```{r, fig.cap="Distribution of study_per_week"}
+datawizard::skewness(exams_filtered$study_per_week)
+shapiro.test(exams_filtered$study_per_week)
+ggpubr::gghistogram(exams_filtered,x="study_per_week",y="..count..",bins=7)
+```
+
+
+```{r, fig.cap="Distribution of age"}
+datawizard::skewness(exams_filtered$age)
+shapiro.test(exams_filtered$age)
+ggpubr::gghistogram(exams_filtered,x="age",y="..count..",bins=12)
+```
+
+
+```{r, fig.cap="Distribution of heart_rate_after"}
+datawizard::skewness(exams_filtered$heart_rate_after)
+shapiro.test(exams_filtered$heart_rate_after)
+ggpubr::gghistogram(exams_filtered,x="heart_rate_after",y="..count..",bins=12)
+```
+
+
+```{r, fig.cap="Distribution of heart_rate_before"}
+datawizard::skewness(exams_filtered$heart_rate_before)
+shapiro.test(exams_filtered$heart_rate_before)
+ggpubr::gghistogram(exams_filtered,x="heart_rate_before",y="..count..",bins=12)
+```
+
+
+Answers here.
+
+Outliers >3 $SD$s away from the mean were identified visually from box plots of age and heart_rate_after. Student 40 had an extremely high heart rate after the exam. Student 50 was much more older than the other students in the course. These two students were filtered out. From looking at the histograms of all the variables thereafter, Student 9 was also filtered out of the dataset because the love_of_stats variable had a value of 11 for them, and it cannot exceed 10.
+
+Even after filtering, all three variables age ($W$(57)=0.93, $p$=.004),love_of_stats ($W$(57)=0.94, $p$=.008) and study_per_week($W$(57)=0.93, $p$=0.002) seem to be significantly non-normal, at the $p$<0.05 level. Histograms of their distributions showed their skewness. heart_rate_before and heart_rate_after, however, were both normally distributed, and their Shapiro-Wilk's tests did not reach significance.
+
+\newpage
+
+## Question 2c
+
+*You are interested in whether males are significantly lower in the number of hours they study each week compared to females (Hypothesis 1). Write an APA formatted results section exploring Hypothesis 1. (5 marks) This includes stating the appropriate test (no justification needed), quickly reporting on assumptions (we assume independence from here on so no need for that, and only report normality after removing outliers -- no need to repeat normality tests from b.) and reporting the findings (provide and reference an APA formatted figure and reference whether the hypothesis was supported or not). Hint: When reporting findings, you need to include practical significance!*
+```{r, fig.cap="Bar-plot of study hours per week grouped by gender"}
+
+#get all female subjects filtered (n=26). Check normality
+exams_filtered_female=dplyr::filter(.data=exams_filtered,gender=="female")
+paste("mean_hours",mean(exams_filtered_female$study_per_week))
+paste("sd_hours",sd(exams_filtered_female$study_per_week))
+shapiro.test(exams_filtered_female$study_per_week)
+
+#get all male subjects filtered (n=31). Check normality
+exams_filtered_male=dplyr::filter(.data=exams_filtered,gender=="male")
+paste("mean_hours",mean(exams_filtered_male$study_per_week))
+paste("sd_hours",sd(exams_filtered_male$study_per_week))
+shapiro.test(exams_filtered_male$study_per_week)
+
+# study_per_week is non-normally distributed for both male (W=0.91, p=0.013) and female (W=0.90, p=0.018) groups. To prevent non-normality violation from having too much of an effect on Type I errors, we resample without replacement, an equal number (n=26) of male subjects as female subjects. The resampled data is saved as "Q_2c_male.csv", and then lines 302-303 are commented out
+
+#exams_filtered_male_equal=exams_filtered_male[sample(1:31,26,replace=FALSE),]
+#write.csv(exams_filtered_male_equal,here::here("assignments","assignment-1","Q_2c_male_equal.csv"))
+
+exams_filtered_male_equal=read.csv(here::here("assignments","assignment-1","Q_2c_male_equal.csv"))
+
+paste("mean_hours",mean(exams_filtered_male_equal$study_per_week))
+paste("sd_hours",sd(exams_filtered_male_equal$study_per_week))
+
+#Do Levene's test on new dataset to check for homogeneity of variance.
+
+exams_filtered_equal=tibble::add_row(.data=exams_filtered_female,gender=exams_filtered_male_equal$gender,study_per_week=exams_filtered_male_equal$study_per_week)
+car::leveneTest(y=exams_filtered_equal$study_per_week,group=exams_filtered_equal$gender,center=mean)
+
+#perform independent t-test and make a bar-plot
+t.test(x=exams_filtered_female$study_per_week,y=exams_filtered_male_equal$study_per_week,var.equal = TRUE )
+ggpubr::ggbarplot(exams_filtered_equal, x = "gender", y = "study_per_week", add = "mean_ci",xlab = "Gender", ylab="Study hours per week")
+
+effectsize::cohens_d(
+  x = exams_filtered_female$study_per_week,
+  y=exams_filtered_male_equal$study_per_week
+)
+
+
+```
+
+Answers here.
+
+To test the hypothesis, we need to perform an independent samples $t$-test. First, we test for the normality assumption in females and males by running the Shapiro-Wilk's test at a $p$-critical of 0.05. Study hours per week were distributed non-normally in both females ($W$(26)=0.90, $p$=.018) and males ($W$(31)=0.91, $p$=.013). 
+
+We know that while the independent t-test is generally robust to violations of normality, unequal sample sizes, like here, can lead to an inflation of Type I errors. Therefore, we downsample the male dataset from $n$=31 to $n$=26 (same as females) using resampling without replacement, and save that dataset as Q_2c_male_equal.csv.
+
+We then checked for homogeneity of variance between the equal-sized male and female groups using the Levene's test. The variance across the groups can be assumed to be equal ($F$(1,50)=0.52, $p$=.473).
+
+Finally, we run the independent samples $t$-test. Results suggest that females ($M$=3.42, $SD$=1.20) do not study significantly more number of hours per week than males ($M$=2.73, $SD$=1.46), $t$(50)=1.87, $p$=.068, Cohen's $d$=0.52. The medium effect size, and a $p$-value very close to the threshold however suggests that using a larger sample size may lend sufficient power to the $t$-test to get a significant positive effect of being female on studying more hours per week.
+\newpage
+
+## Question 2d
+
+*You are also interested in whether there is a statistically significant increase in heart rates from before to after the exam for all students (Hypothesis 2). Write an APA formatted results section (with the same requirements from the previous question) for Hypothesis 2. (5 marks)*
+
+```{r, fig.cap="Line-graph of heart rates before and after the exam" }
+#check normality
+shapiro.test(exams_filtered$heart_rate_after)
+mean(exams_filtered$heart_rate_after)
+shapiro.test(exams_filtered$heart_rate_before)
+mean(exams_filtered$heart_rate_before)
+
+
+group=c(rep("before",times=57),rep("after",times=57))
+h=c(exams_filtered$heart_rate_before,exams_filtered$heart_rate_after)
+
+exams_filtered_long_heart_rate=tibble::tibble(group=group,heart_rate=h)
+
+
+#perform paired t-test
+t.test(heart_rate ~ group,paired=TRUE,data=exams_filtered_long_heart_rate)
+ggpubr::ggline(data=exams_filtered_long_heart_rate,x="group",y="heart_rate", add = "mean_ci", xlab = "Group", ylab = "Heart rate")
+effectsize::cohens_d(heart_rate ~ group,data=exams_filtered_long_heart_rate,paired=TRUE)
+```
+
+Heart rates both before ($W$(57)=0.98, $p$=.503) and after ($W$(57)=0.97, $p$=.155) the exam were normally distributed. A paired samples $t$-test reveals that there is a significant decrease in the heart rate of students from before the exam ($M$=73.56, $SD$=6.20) to after the exam ($M$=66.14, $SD$=5.24), $t$(56)=-16.71, $p$<.001. The effect size, suggested by a Cohen's $d$=-2.21, is very large.
+
+\newpage
+
+## Question 2e
+
+*Another TA brags to you that they collected similar data when they were teaching the class and their students' love of statistics had a mean of 5.17. They claim that your class' love was significantly lower (i.e., you aren't as awesome as them). Does this TA have the right to brag, or should they spend more time studying statistics themselves? Choose an appropriate test and report the findings that justify your response to this TA (no APA results section needed, including no figure, assumptions, or effect sizes needed). (2 marks)*
+
+
+```{r}
+
+t.test(exams_filtered$love_of_stats,mu=5.17)
+```
+
+Answers here.
+
+While the mean of my class's love of statistics was lower than the other TA, the one-sample $t$-test shows that the effect is not significant ($t$(56)=-1.38, $p$=.174). Moreover, we assume that the distribution of love_of_stats is normal, although we have seen before in Q2b that it is significantly skewed. Therefore, the $t$-test is also not completely reliable.
+
+As such, it seems the TA needs to brush up the basics of his own statistics.
+
+\newpage
+
+# Bonus
+
+*(.5 marks; not exceed 100% on assignment) When the two groups for an independent t-test do not have equal variance, what specific value is first adjusted to compensate for this in the analysis?*
+
+Answers here.
+
+When the two groups in an independent t-test do not have equal variance, the degrees of freedom ($dF$) is adjusted according to the variances of the two groups. This leads to a consequent change in the critical $t$-value for a particular $\alpha$ level.

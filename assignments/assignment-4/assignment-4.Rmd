@@ -1,0 +1,226 @@
+---
+title             : "Assignment 4---ANCOVA."
+shorttitle        : "Assignment 4"
+
+params:
+  firstname  : Yudhajit
+  lastname   : Ain
+  studentid  : 0123456789
+  TAs        : "Christopher Davie & Benjamin Moon"
+  show_output: FALSE
+  assignment: 4
+
+output: papaja::apa6_docx
+knit: ( function(input, ...) { source("../../R/knit.R"); knit_assignment(input, ...) })
+---
+
+```{r setup, include=FALSE}
+# set up here
+here::i_am("assignments/assignment-4/assignment-4.Rmd")
+
+# load packages
+library(here)
+library(papaja)
+library(broom)
+library(ggplot2)
+library(ggpubr)
+```
+
+```{r set-chunk-opts, include=FALSE, code=xfun::read_utf8(here('R', 'chunk-opts.R'))}
+```
+
+# Question 1
+
+*From the `data` directory, please import `assignment-4_q1.csv` into R.*
+
+```{r Q1-df}
+data_q1=readr::read_csv(here("data","assignment-4_q1.csv"))
+
+```
+
+*Background: The headmaster, BumbleGate, of a certain School of Wizardry and Witchcraft is interested in whether the houses in his school differ in the number of spells they can cast effectively in a year (measured as a percentage). He has four houses (GriffinGate, PuffleHuff, CrowToe, and HissyHiss); however, he is biased toward HissyHiss and does not want them participating in his little experiment at all -- if they win, he would have to admit they were good students, and he certainly wouldn't want to do that! He thinks that the number of encounters (average per year) with the villain at this school (MoldaVort) could affect how many spells a student learns and whether they take the time to learn how to use them effectively. He does not have any specific predictions a priori.*
+
+## Question 1a
+
+*Conduct the appropriate tests of assumptions, including the necessary assumptions/tests for including a covariate in the study, and state whether the assumptions are met or not. (5 marks). DO NOT DELETE ANYTHING FROM THE DATA SET. For this question, you can just talk about each assumption in bullet form, although the statistics still need to be reported in APA. E.g., Independence: You don't have to talk about independence, because this assumption is discussed when planning the study, but if you did, and it had statistics, you would include them here! Normality: Include tests here, but no need to talk about outliers. Etc.*
+
+```{r}
+shapiro.test(dplyr::filter(data_q1,house=="GriffinGate")$spells)
+shapiro.test(dplyr::filter(data_q1,house=="CrowToe")$spells)
+shapiro.test(dplyr::filter(data_q1,house=="PuffleHuff")$spells)
+
+#Levene's Test
+car::leveneTest(spells~house,center=mean,data=data_q1)
+
+#correlation between DV and covariate
+cor.test(~ spells + encounters,
+  method = "pearson",
+  data = data_q1
+)
+
+#one-way anova for effect of IV on covariate
+cov_model=aov(encounters~house,data=data_q1)
+broom::tidy(cov_model)
+effectsize::omega_squared(cov_model)
+
+#checking for homogeneity of regression slopes
+full_model=aov(spells~house*encounters,data=data_q1)
+broom::tidy(full_model)
+
+```
+
+```{r,fig.cap="Boxplots for percentage correct spells for each house"}
+ggpubr::ggboxplot(data=data_q1,x="house",y="spells",xlab="House",ylab="Percentage correct spells")
+```
+
+```{r,fig.cap="Distribution of percentage correct spells for GriffinGate"}
+ggpubr::gghistogram(data=dplyr::filter(data_q1,house=="GriffinGate"),x="spells",y="..count..",xlab="Percentage correct spells",ylab="Count",bins=15)
+
+```
+
+Answers here.
+
+Assumption of within-group normality was violated for the house GriffinGate $(W(50)=0.90,p<.001)$. This is evident from visual inspection of figures 1 and 2, with there being outliers in the house GriffinGate which gives it a negative skew. The assumption is not violated for PuffleHuff $(W(50)=0.96,p=.099)$ or CrowToe $(W(50)=0.97,p=.226)$.
+
+Assumption of homogeneity of variance across groups is not violated, as evidenced by a non-significant Levene's test $(F(2,147)=0.74,p=.480)$.
+
+The assumption of independence between the covariate (number of encounters) and the independent variable (house) is violated. The results of a one-way ANOVA demonstrates a significant effect of house on the number of encounters $(F(2,147)=300.80,p<.001,\omega^2=0.80)$.
+
+There is also a significant correlation between the covariate (number of encounters) and the dependent variable (percentage of spells cast correctly) $(r(148)=.90,p<.001)$.
+
+Lastly, the assumption of homogeneity of regression slopes across levels of the independent variable (house) is not violated, since the interaction between house and encounters is non-significant $(F(2,144)=2.53,p=.083)$.
+
+\newpage
+
+## Question 1b
+
+*Looking at these assumptions, would you suggest using this covariate in the analysis of this study? Why or why not? Explain briefly. (2 marks)*
+
+Answers here.
+
+We see that the number of encounters with MoldaVort is not independent and unrelated to our independent variable (house). There is a strong effect of house membership on the number of encounters $(\omega^2=0.80)$, and hence, it is *not ideal* to include the number of encounters as a continuous covariate in our ANCOVA for this case.
+
+At the same time, the number of encounters with MoldaVort clearly explains a lot of variance in the dependent variable, as they are highly correlated $(r=.90,p<.001)$. Thus, it would make sense to not only investigate the effect of the number of villain encounters on the percentage of spells cast correctly, but also to correcting for the confounding effect of encounters when testing for unique variance in the DV that is explained by house-membership. Including the covariate in an ANCOVA allows us to do this. 
+
+\newpage
+
+## Question 1c
+
+*Perform an ANOVA on your dataset (NOT including the covariate) and report your results (including follow-ups). The report should include a brief write-up/interpretation of results based on statistics and at least one figure (APA format required only for statistics and figures). (5 marks) Hint: Using partial eta squared here is good.*
+
+```{r}
+
+noncov_model = aov(spells~house,data=data_q1,contrasts = list(house=contr.sum))
+noncov_model_t3 = car::Anova(noncov_model,type=3)
+broom::tidy(noncov_model_t3)
+effectsize::omega_squared(noncov_model_t3)
+
+noncov_emm=emmeans::emmeans(noncov_model,specs="house")
+noncov_emm
+
+emmeans::contrast(object=noncov_emm, method="pairwise", adjust="tukey", infer = T)
+
+emmeans::eff_size(
+  object=noncov_emm,
+  sigma=sigma(noncov_model),
+  edf=df.residual(noncov_model),
+  method="pairwise"
+)
+
+
+sd(dplyr::filter(data_q1,house=="GriffinGate")$spells)
+sd(dplyr::filter(data_q1,house=="CrowToe")$spells)
+sd(dplyr::filter(data_q1,house=="PuffleHuff")$spells)
+
+```
+
+# Results
+
+A one-way ANOVA for the effect of house membership on the percentage of correctly cast spells reveals a significant main effect of house $(F(2,147)=166.93,p<.001,\omega^2=0.69)$. We then conduct pairwise comparisons to follow-up, using Tukey's HSD procedure. We find that the average percentage of spells cast correctly by students belonging to CrowToe $(M=75.5,SD=4.13)$ is significantly lower than that by students belonging to GriffinGate $(M=90.8,SD=5.38)$, $(t(147)=-16.834,p<.001,d=-3.37)$. Students belonging to CrowToe $(M=75.5,SD=4.13)$ also had a significantly lower average percentage of spells cast correctly compared to students belonging to PuffleHuff $(M=88.8,SD=4.06)$, $(t(147)=-14.57,p<.001,d=-2.91)$. There was no statistically significant difference $(t(147)=2.26,p=.064,d=0.45)$ between students belonging to house GriffinGate $(M=90.8,SD=5.38)$ and house PuffleHuff $(M=88.8,SD=4.06)$, with respect to the average percentage of spells cast correctly. These results are visually summarised using a bar-plot in figure 3.
+
+```{r,fig.cap="Effect of house membership on percentage of correctly cast spells. Error-bars represent 95% confidence intervals"}
+
+ggpubr::ggbarplot(data=data_q1[order(data_q1$house),],x="house",y="spells",add="mean_ci",fill="grey",xlab="House",ylab="Percentage correct spells")
+
+```
+
+\newpage
+
+## Question 1d
+
+*Perform an ANCOVA on your dataset (including the covariate) and report the results (including follow-ups). The report should include a brief write-up/interpretation of results based on statistics and at least one figure (APA format required only for statistics and figures). (5 marks)*
+
+```{r}
+full_model_cov = aov(spells ~ house + encounters,contrasts = list(house = contr.sum),      data=data_q1)
+
+full_model_cov_t3 = car::Anova(full_model_cov,type=3)
+broom::tidy(full_model_cov_t3)
+effectsize::omega_squared(full_model_cov_t3)
+
+full_model_cov_emm=emmeans::emmeans(full_model_cov,specs="house")
+full_model_cov_emm_tidied=tidy(full_model_cov_emm,conf.int=TRUE)
+full_model_cov_emm_tidied
+
+emmeans::contrast(object=full_model_cov_emm, method="pairwise", adjust="tukey")
+
+emmeans::eff_size(
+  object=full_model_cov_emm,
+  sigma=sigma(full_model_cov),
+  edf=df.residual(full_model_cov),
+  method="pairwise"
+)
+
+plot_reorder=full_model_cov_emm_tidied[order(full_model_cov_emm_tidied$house),]
+  
+```
+
+# Results
+
+We ran an ANCOVA for the effect of house membership on the percentage of correctly cast spells, with the number of encounters of each student with MoldaVort as a continuous covariate. The analysis reveals a significant main effect of house $(F(2,146)=11.49,p<.001,\omega^2=0.12)$, as well as a much larger significant effect of the number of encounters with MoldaVort $(F(1,146)=134.76,p<.001,d=0.47)$ on the percentage of correctly cast spells. We then conduct pairwise comparisons for follow-ups, using Tukey's HSD procedure, to find out which houses differ with respect to percentage correctly cast spells (after accounting for encounters). We find that the average percentage of spells cast correctly by students belonging to CrowToe $(M=83.97\pm 0.87(SE))$ is significantly lower than that by students belonging to PuffleHuff $(M=86.89 \pm 0.49(SE))$, $(t(146)=-2.62,p=.026,d=-0.88)$. Students belonging to GriffinGate $(M=84.17 \pm 0.74(SE))$ also had a significantly lower average percentage of spells cast correctly compared to students belonging to PuffleHuff $(M=86.89 \pm 0.49(SE))$, $(t(146)=-3.50,p=.002,d=-0.82)$. There was no statistically significant difference $(t(146)=-0.13,p=.990,d=-0.06)$ between students belonging to house CrowToe $(M=83.97\pm 0.87(SE))$ and house GriffinGate $(M=84.17 \pm 0.74(SE))$, with respect to the average percentage of spells cast correctly. Note that all these comparisons take into consideration the effects on percentage correctness of spells cast uniquely attributable to house membership alone, after partialing out the effect of our covariate (number of MoldaVort encounters). These results are visually summarised using a bar-plot in figure 4.
+
+```{r,fig.cap="Effect of house membership on percentage of correctly cast spells, after accounting for number of encounters with MoldaVort. Error-bars represent 95% confidence intervals"}
+
+ggpubr::ggbarplot(plot_reorder, x = "house", xlab = "House", y = "estimate", ylab = "Percentage correct spells" , fill="grey") +
+  ggplot2::geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.1)
+```
+
+\newpage
+
+## Question 1e
+
+*How do the results (including follow-ups) differ between the ANOVA and ANCOVA? Hint: Don't forget to compare the omnibus effect sizes (using partial eta squared from ANOVA and ANCOVA here is good) and/or observed power and provide a brief interpretation, including a possible explanation for what you are observing. (4 marks)*
+
+Answers here.
+
+We find that running an ANCOVA (including the covariate), compared to an ANOVA (without covariate) actually decreases the percentage of variance in the dependent variable (percent correct spells) explained uniquely by house membership. This is demonstrated by an $\omega^2$ effect-size of house $= 0.69$, for the ANOVA, as opposed to a partial omega-squared effect-size of house $=0.12$, for the ANCOVA.
+
+There are also remarkable differences in the results of the follow-up comparisons. Without taking into account the covariate, we find that the house CrowToe has a significantly lower mean percentage of correct spells compared to both GriffinGate and PuffleHuff, while there is no significant difference between GriffinGate and PuffleHuff. On the other hand, the follow-ups to an ANCOVA (taking into account the effect of covariate) indicate that after controlling for the effect of encounters with MoldaVort, the house PuffleHuff has a significantly higher mean percentage of correct spells compared to both GriffinGate and CrowToe, while there is no significant difference between GriffinGate and CrowToe.
+
+Given that 1) the number of encounters with MoldaVort has a strong positive correlation $(r=.90,p<.001)$ with percentage spells cast correctly, and 2) there is a significant and large effect $(\omega^2=0.80)$ of house on the mean number of encounters (see figure 5), the above-mentioned differences in the results of the ANOVA and ANCOVA are quite intuitive.
+
+Specifically, GriffinGate students have the highest average number of encounters with MoldaVort, followed by PuffleHuff, and then CrowToe. As such, the contribution of the covariate (encounters) to the dependent variable is also highest for GriffinGate, followed by PuffleHuff, and CrowToe. We also know that this contribution is positive (more encounters lead to more correct spells). Thus, when we do an ANCOVA and partial out the effect of encounters on the DV, the house-wise average DV measure goes down the most for GriffinGate, a little less for PuffleHuff, and least for CrowToe (it actually goes up!). The end result is that after accounting for encounters, PuffleHuff (which had equal mean DV value as GriffinGate for ANOVA) becomes the house with highest average percentage correct spells. Moreover, after adjusting for the huge difference in mean number of encounters between GriffinGate and CrowToe, there seems to be no significant difference between the two houses attributable uniquely to house membership.
+
+```{r,fig.cap="Bar-plot of average number of encounters with MoldaVort, by house membership. Error-bars represent 95% confidence intervals"}
+
+ggpubr::ggbarplot(data_q1[order(data_q1$house),],x="house",y="encounters",add="mean_ci",xlab="House",ylab="Number of encounters",fill="grey")
+
+```
+
+\newpage
+
+# Question 2
+
+*In approximately half a page (one page maximum; double spaced), create and describe your own study that can be analyzed with ANCOVA, which must include one IV with four levels, one continuous DV, and two continuous appropriate covariates. Don't forget to include the categories/scale for each variable. You DO NOT need to create data or run any analyses here. (4 marks)*
+
+*NOTE: The study must "make sense" theoretically (in terms of relationships between variables), but I'll give +.5 BONUS for creativity here! Have fun with it!*
+
+The research question for this study is "Are some hobbies objectively more effective than others at reducing stress?". Each participants first goes through a stress-induction paradigm that has been shown to reliably elicit psychosocial stress - the Montreal Imaging Stress Task (Dedovic et al., 2005). Immediately after stress-induction, their stress level is evaluated by taking a saliva sample and assaying for cortisol. This is our first covariate (**Stress-susceptibility**). Next, participants are asked to respond to 4 separate statements (presentation order randomised), on a Likert-type scale [1 = strongly disagree, 2 = disagree, 3 = neither agree nor disagree, 4 = agree, 5 = strongly agree] :
+
+1. I enjoy Reading in my free time.
+2. I enjoy Painting in my free time.
+3. I enjoy Exercising in my free time.
+4. I enjoy Movie-watching in my free time.  
+
+Following this step, the participant is randomly assigned to one of 4 levels of our independent variable (**Hobby-task**) - Reading, Painting, Exercising, or Movie-watching. The response to the one question (out of four) specifically pertaining to the Hobby-task condition they get assigned to, is then noted as a measure of our second covariate (**Task-preference**). Note that we take the measures for participant-specific preference to all tasks *before assignment* to a Hobby-task condition, and therefore, *although choosing the specific question whose response to code as Task-preference depends on the assignment to Hobby-task condition, the measures itself are independent of the assignment*. All of the Hobby-task conditions involve allowing the participant to engage in the specific task for 15 minutes. Following the end of the 15 min period, their saliva is collected again, and assayed for cortisol like before. The difference between the two cortisol levels (Before_task - After_task) is our dependent variable measure (**Stress-reduction**). 
+
+Once the data collection is over, we can run an ANCOVA with Stress-reduction as the dependent variable, and Hobby-task as the independent variable. Stress-susceptibility (after stress-induction, before Hobby-task), and Task-preference (for assigned task) are the two continuous predictors that we use as covariates in this analysis. We predict that there may be a negative correlation between Stress-reduction and Stress-susceptibility; that is, the more sensitive/susceptible to stress someone is (by to the same stress-induction task), the more likely they are to be less calmed down (lower reduction in stress) after engaging in a hobby-like activity. We also predict that there may be a positive correlation between Stress-reduction and Task-preference; that is, people will benefit greater reduction in stress when they engage in a task that they enjoy doing themselves. If the correlation of Stress-reduction with either covariate isn't significant, we don't include it as a covariate. If there is a significant main effect of Hobby-task on Stress-reduction after including the appropriate covariates, it will tell us that there is an objective difference somewhere between Reading, Painting, Movie-watching, and Exercising with respect to how efficient these hobbies are at reducing stress-levels, irrespective (or idependent) of how stressed people are before doing them, or how much people prefer doing them. We can find out where these differences are using post-hoc comparisons as follow-ups, if the main effect is significant.  

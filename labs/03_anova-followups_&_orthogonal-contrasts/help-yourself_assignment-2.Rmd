@@ -1,0 +1,267 @@
+---
+title: "Help yourself: Assignment 2"
+author:
+  - name: "Christopher Davie & Benjamin Moon"
+    url: https://github.com/mccarthy-m-g
+    affiliation: "PSYC 615 Lab"
+    affiliation_url: https://github.com/ChristopherADavie/psyc-615-lab-main
+repository_url: https://github.com/ChristopherADavie/psyc-615-lab-main
+output:
+  distill::distill_article:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = "#>", collapse = TRUE)
+```
+
+## Prerequisites
+
+To access the datasets, help pages, and functions that we will use in this *help yourself*, load the following packages:
+
+```{r prerequisites}
+here::i_am("labs/03_anova-followups_&_orthogonal-contrasts/help-yourself_assignment-2.Rmd")
+
+library(here)
+library(papaja)
+library(tidyverse)
+library(ggpubr)
+library(car)
+library(broom)
+library(effectsize)
+library(emmeans)
+```
+
+As well as this Help Yourself's example data:
+
+```{r example-data-1}
+birthdays <- readr::read_csv(here::here("data", "help-yourself_a2.csv"))
+```
+
+## A reminder
+
+The **Help Yourself** R Markdown documents are cumulative, so you will need to refer to last week's Help Yourself for some of the functions needed to complete the assignment. No new or different syntax is needed for these functions so it's just a matter of finding the right ones. Check the following sections:
+
+-   Reading data
+-   Wrangling data
+-   Visualizing data
+-   Statistical assumptions
+
+You will only need functions from these sections, plus the new ones introduced in this Help Yourself to complete this week's assignment. Not much programming is needed this week either---your TAs answered all the questions using less than 15 function calls (not including setup functions).
+
+## Independent one-way ANOVA
+
+The independent one-way ANOVA is an omnibus test that tests for an overall effect between two or more distinct unrelated groups without specifying what the effect was. The `aov()` function (`?aov`) can be used to fit an independent one-way ANOVA. It uses the same formula syntax as the `t.test()` function did for independent t-tests last week, where the dependent variable goes to the left of the tilde and the independent variable goes to the right.
+
+```{r aov-1}
+birthdays_model <- aov(awesomeness ~ bdayquarter, data = birthdays)
+```
+
+To view a summary table of the model fit you can use the `tidy()` function (`?tidy.aov`) from the broom package.
+
+```{r aov-tidy}
+broom::tidy(birthdays_model)
+```
+
+The `omega_squared()` function (`?effectsize::omega_squared`) can be used to calculate the effect size for the ANOVA model.
+
+```{r omega-squared}
+effectsize::omega_squared(model = birthdays_model)
+```
+
+## Post-hoc tests
+
+The [**emmeans** (aka Estimated Marginal Means) package](https://cran.r-project.org/web/packages/emmeans/index.html) can be used for a variety of follow-up tests for many linear and generalized linear models, such as the independent one-way ANOVA and other models you will learn about in the coming weeks. We have shared some vignettes on the emmeans package for you to learn more about the package, and estimated marginal means in general. Consider reading them. They're very good and will get you thinking critically about post-hoc testing.
+
+Estimated marginal means are based on a model---not directly on data. The basis for them is what is called a reference grid for a given model. The `emmeans()` function (`?emmeans::emmeans`) can be used to establish the reference grid and estimate the marginal means. It has two required arguments: An `object` argument, which takes a fitted model object (in this case the birthdays ANOVA); and a `specs` argument, which takes the names of the predictor over which estimated marginal means are desired. Although note: for an independent one-way ANOVA the `emmeans()` function establishes the reference grid from the means of each level of the predictor since there aren't actually any marginal means to calculate.
+
+```{r emmeans}
+birthdays_emm <- emmeans(object = birthdays_model, specs = "bdayquarter")
+birthdays_emm
+```
+
+The reference grid established by the `emmeans()` function and now stored in the `birthdays_emm` object will be needed, which is why we gave the short explainer. Many functions in the emmeans package make use of this reference grid, such as those we will cover in the next section. (Note: This will be used in future assignments)
+
+### Pairwise comparisons
+
+The `contrast()` function (`?emmeans::contrast`) can be used to calculate pairwise comparisons from the reference grid created by the `emmeans()` function. The `method` argument determines the type of contrast (in this case we want pairwise comparisons), the `adjust` argument determines the adjustment method for p-values, and the `infer` argument determines whether confidence intervals are computed or not.
+
+```{r pairwise-unadjusted}
+contrast(
+  object = birthdays_emm,
+  method = "pairwise",
+  adjust = "none",
+  infer = TRUE
+)
+```
+
+If you want adjusted p-values you can supply either "tukey", "bonferroni", or "holm" to the `adjust` argument.
+
+```{r tukey-hsd}
+contrast(
+  object = birthdays_emm,
+  method = "pairwise",
+  adjust = "tukey",
+  infer = TRUE
+)
+```
+
+The results of the `contrast()` function can also be tidied with the `tidy()` function from the broom package if you need to access them programmatically.
+
+The `eff_size()` function (`?emmeans::eff_size`) to calculate Cohen's d for pairwise comparisons. The required `sigma` argument takes the value of the population standard deviation for your sample, which can be obtained using the `sigma()` function on your model fit object. The required `edf` argument takes the equivalent degrees of freedom (edf) for the population standard deviation for your sample, which can be obtained using the `df.residual()` function on your model fit object.
+
+```{r cohens-d}
+eff_size(
+  object = birthdays_emm,
+  sigma = sigma(birthdays_model),
+  edf = df.residual(birthdays_model),
+  method = "pairwise"
+)
+
+```
+
+The results of the `eff_size()` function can also be tidied with the `tidy()` function.
+
+## Orthogonal Contrasts
+
+As well as this Help Yourself's example data:
+
+```{r example-data-2}
+birthdays <- readr::read_csv(here::here("data", "help-yourself_a2.csv"))
+```
+
+## Display math
+
+You will need to show your calculations for demonstrating orthogonality in planned comparisons for this week's assignment. You can fill in the math equations below for that.
+
+$$
+\begin{aligned} \\
+[...]\cdot[...] &= x_1*y_1 + x_2*y_2 + x_3*y_3 \\
+&= a + b + c \\
+&= 0 \\
+&= \mathrm{orthogonal}
+\end{aligned}
+$$
+
+## Factors
+
+Factors are a data type in R that indicate the values of a variable are categorical. It is important to encode categorical variables in your data frame as factors, as that will tell the statistical functions in R to treat them as such. If you do not do this you can run into unexpected (and incorrect results). You can use the `as_factor()` function (`?forcats::as_factor`) from the **forcats** package to turn a variable in a data frame into a factor.
+
+```{r as_factor}
+birthdays <- dplyr::mutate(
+  birthdays,
+  bdayquarter = forcats::as_factor(bdayquarter)
+)
+birthdays
+```
+
+When you are creating contrast codes for a variable it's important that these codes align with the factor levels of that variable in your data frame. The `levels()` function (`?levels`) can be used to view factor levels of a variable.
+
+```{r levels}
+levels(birthdays$bdayquarter)
+```
+
+Sometimes the levels of a factor are not in the order you want. The `fct_relevel()` function (`?forcats::fct_relevel`) can be used to relevel factors. Paired with the `mutate()` function (`?dplyr::mutate`) it can be used to relevel factors within a data frame.
+
+```{r}
+birthdays_releveled <- dplyr::mutate(
+  birthdays,
+  bdayquarter = forcats::fct_relevel(
+    bdayquarter,
+    c("four", "three", "two", "one")
+  )
+)
+levels(birthdays_releveled$bdayquarter)
+```
+
+## Setting contrasts
+
+You can set contrasts by creating a series of vectors with your contrast codes, then the `contrasts()` and `cbind()` functions can be used to apply the contrast codes to the variable in your data frame.
+
+```{r set-contrasts}
+# Create contrast coding for each hypothesis
+contrast_1 <- c(3,-1,-1,-1)
+contrast_2 <- c(0, 2,-1,-1)
+contrast_3 <- c(0, 0, 1,-1)
+
+# Set contrasts in the birthdays tibble
+contrasts(birthdays$bdayquarter) <- cbind(contrast_1, contrast_2, contrast_3)
+
+# View the contrasts after they're set
+contrasts(birthdays$bdayquarter)
+```
+
+Note that you want your contrasts to be orthogonal. If they are not orthogonal then some additional steps need to be taken to get accurate estimates when you run your contrasts. You do not need to worry about this in lab.
+
+Also note that because the contrast codes are applied to the variable in your data frame, any model you run with that variable will use those contrast codes. This will not be an issue in this course, but it's good to know about. See the links in Learning More for alternative ways of setting contrasts if you are ever in a situation where this behaviour would be an annoyance.
+
+## ANOVA
+
+Once contrasts are set you can fit your ANOVA model, same as we did last week.
+
+```{r aov-2}
+birthdays_model <- aov(awesomeness ~ bdayquarter, data = birthdays)
+broom::tidy(birthdays_model)
+
+effectsize::omega_squared(birthdays_model)
+```
+
+## Getting contrasts
+
+To calculate the contrast results you can use the same `contrast()` function from the **emmeans** package as last week, but rather than using the argument `method = "pairwise"` to get pairwise contrasts, you will tell the `method` argument the specific contrasts you want to calculate using the contrast code objects specified earlier.
+
+```{r contrast}
+birthdays_emm <- emmeans::emmeans(birthdays_model, specs = "bdayquarter")
+
+birthdays_emm_contrast <- emmeans::contrast(
+  birthdays_emm,
+  method = list("H1" = contrast_1, "H2" = contrast_2, "H3" = contrast_3),
+  adjust = "none",
+  infer = TRUE
+)
+
+birthdays_emm_contrast
+```
+
+The formula to calculate the effect size for contrast results is:
+
+$$
+d = \frac{2 * \mathrm{estimate}}{\sigma_R * \sum_{k = 1}^k{| c_k |}}
+$$
+
+It looks like a lot is going on here, but the equation becomes simpler once you turn it into R code. First you can calculate the sums of the absolute values of the contrast codes for each contrast.
+
+```{r}
+contrast_sums <- colSums(abs(contrasts(birthdays$bdayquarter)))
+contrast_sums
+```
+
+Then you can tidy the emmeans contrast object.
+
+```{r}
+birthdays_emm_contrast <- broom::tidy(birthdays_emm_contrast)
+birthdays_emm_contrast
+```
+
+Finally you can plug the formula into the `mutate()` function to compute the correct effect size for each contrast. The `sigma()` function is used to get the residual standard deviation from the fitted ANOVA model.
+
+```{r eff-size}
+birthdays_emm_contrast <- dplyr::mutate(
+  birthdays_emm_contrast,
+  effect.size = (2 * estimate) / (sigma(birthdays_model) * contrast_sums)
+)
+birthdays_emm_contrast
+```
+
+## Learning more
+
+### emmeans vignettes
+
+- FAQ <https://cran.r-project.org/web/packages/emmeans/vignettes/FAQs.html>
+- Basics <https://cran.r-project.org/web/packages/emmeans/vignettes/basics.html>
+- Comparisons <https://cran.r-project.org/web/packages/emmeans/vignettes/comparisons.html>
+- Confidence intervals <https://cran.r-project.org/web/packages/emmeans/vignettes/confidence-intervals.html>
+
+### Contrasts and ANOVA in R
+
+- Deep dive into setting contrasts in R <https://rstudio-pubs-static.s3.amazonaws.com/65059_586f394d8eb84f84b1baaf56ffb6b47f.html>

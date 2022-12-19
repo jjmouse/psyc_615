@@ -1,0 +1,191 @@
+---
+title             : "Assignment 3---Factorial ANOVA."
+shorttitle        : "Assignment 3"
+
+params:
+  firstname  : Yudhajit   
+  lastname   : Ain
+  studentid  : 30182745
+  TAs        : "Benjamin Moon & Chris Davie"
+  show_output: FALSE
+  assignment: 3
+
+output: papaja::apa6_docx
+knit: ( function(input, ...) { source("../../R/knit.R"); knit_assignment(input, ...) })
+---
+
+```{r setup, include=FALSE}
+# set up here
+here::i_am("assignments/assignment-3/assignment-3.Rmd")
+
+# load packages
+library(here)
+library(papaja)
+library(ggpubr)
+```
+
+```{r set-chunk-opts, include=FALSE, code=xfun::read_utf8(here('R', 'chunk-opts.R'))}
+```
+
+# Question 1
+
+*For this assignment you will be designing, “collecting,” and analyzing a two-way factorial ANOVA.*
+
+## Question 1a
+
+*Using your research area, design an experimental 3x2 between-subjects ANOVA. State your research question, IVs, DV, and hypothesis; please also state what makes your design an experimental design. Your hypothesis must explicitly predict a significant interaction and a significant simple main effect at one level of an IV but not the other level(s) of that IV (5 marks). Hint: Visualizing how you want your results to look (with a graph or table) might help you figure out how to create your data so that it meets the hypothesis.*
+
+*Answer*
+
+Let us consider that we are interested in testing the functional double dissociation (mutual independence) between two brain networks - the default mode network (DMN), and the dorsal attention network (DAN) with respect to two cognitive functions they have been shown to subserve respectively - internal attention, and external attention.
+
+To test this hypothesis, we recruit patients with lesions in either the DMN, the DAN, or non-lesion healthy controls. These three groups are levels of our first independent variable - **Lesion**. Within each group, participants are randomly assigned to performing only one of two cognitive attention tasks, one probing internal attention, and one probing external attention. These are the two levels of our second independent variable - **Task**. Our dependent variable for each participant will be their trial-averaged reaction time scores (RT) for each task. The fact that patients will be chosen for inclusion in the study based on localization of lesions within either the DMN or DAN only, and then they will be randomly assigned to either of the two types of Task, makes this an experimental design
+
+Theoretically, we predict there will be a significant interaction between Task and Lesion variables, such that the RT for DMN-lesioned patients will be greater for the internal attention task compared to the external attention task. However, we expect external attention impairments for DAN-lesioned patients to uniformly increase the RT for both internal and external attention tasks since both tasks require top-down attention to external task stimuli. The experimental tasks were piloted for equal difficulty across tasks, so we expect RT to be the same for both tasks for healthy control participants.
+
+
+\newpage
+
+## Question 1b
+
+*Create a dataset that will successfully confirm your hypothesis. Upload a file with your dataset (saved as a .csv file) when you submit the assignment. Your data set must have 6 unique groups (i.e., cells; 3x2 design) with a total sample size of 150 (3 marks).*
+
+
+```{r}
+between=list(
+  Lesion = c("DMN","DAN","Control"),
+  Task = c("Internal","External")
+)
+
+mu=list(
+  DMN_Internal = 150,
+  DMN_External = 100,
+  DAN_Internal = 148,
+  DAN_External = 150,
+  Control_Internal = 99,
+  Control_External = 101
+)
+
+st_dev = 6
+
+set.seed(12)
+lesion_task <- faux::sim_design(
+  between = between,
+  n = 25,
+  mu = mu,
+  sd = st_dev,
+  empirical = TRUE,
+  dv = "reaction_time",
+  plot = FALSE
+)
+
+lesion_task=tibble::as_tibble(lesion_task)
+write.csv(lesion_task,here("assignments","assignment-3","Q1b.csv"))
+
+```
+*Answer*
+
+The dataset is saved as Q1b.csv
+
+
+\newpage
+
+## Question 1c
+
+*Perform the analyses on your data and write an APA formatted results section (10 marks). This includes:*
+
+- *A quick report on your assumptions (you are creating this data, so you can make sure it doesn’t violate assumptions!). Don’t worry about addressing independence. Please report tests of normality and homogeneity of variance (you do not need to include anything on skew, kurtosis, Q-Q plots, etc.) (2 marks)*
+- *Reporting the omnibus ANOVA (2 marks)*
+- *Reporting simple main effects and any follow-ups to simple main effects (2 marks)*
+- *Reporting any corrections for multiple comparisons that you used (1 mark)*
+- *Including and referencing an APA formatted figure depicting your interaction (2 marks)*
+- *Hint: When reporting findings, you need to include practical significance! (1 mark)*
+
+
+```{r}
+
+shapiro.test(dplyr::filter(.data=lesion_task,Lesion=="DMN" & Task=="Internal")$reaction_time)
+shapiro.test(dplyr::filter(.data=lesion_task,Lesion=="DMN" & Task=="External")$reaction_time)
+shapiro.test(dplyr::filter(.data=lesion_task,Lesion=="DAN" & Task=="Internal")$reaction_time)
+shapiro.test(dplyr::filter(.data=lesion_task,Lesion=="DAN" & Task=="External")$reaction_time)
+shapiro.test(dplyr::filter(.data=lesion_task,Lesion=="Control" & Task=="Internal")$reaction_time)
+shapiro.test(dplyr::filter(.data=lesion_task,Lesion=="Control" & Task=="External")$reaction_time)
+
+car::leveneTest(reaction_time ~ Lesion * Task,center = mean,data = lesion_task)
+
+lesion_task_model=aov(reaction_time ~ Lesion * Task, data = lesion_task)
+broom::tidy(lesion_task_model)
+#lesion_task_model
+effectsize::omega_squared(lesion_task_model)
+
+emmeans::joint_tests(lesion_task_model,by="Lesion")
+
+lesion_task_emm = emmeans::emmeans(lesion_task_model,specs="Task",by="Lesion")
+
+emmeans::eff_size(lesion_task_emm,sigma=sigma(lesion_task_model),edf=df.residual(lesion_task_model))
+
+
+```
+# Results
+
+Before running an omnibus ANOVA, we first check for validity of the assumptions of within-group normality and between-group homogeneity of variance. The Shapiro-Wilk's test confirms that all groups are normally distributed: DMN-lesion,Internal-task $(W(24)=0.97,p=.754)$, DMN-lesion,External-task $(W(24)=0.96,p=.526)$, DAN-lesion,Internal-task $(W(24)=0.97,p=.590)$, DAN-lesion,External-task $(W(24)=0.95,p=.281)$, Control,Internal-task $(W(24)=0.96,p=.425)$, and Control,External-task $(W(24)=0.96,p=.430)$. The Levene's test was non-significant $(F(5,144)=0.09, p=.994)$, confirming homogeneity of variance across all groups.
+
+Finally, we run the omnibus ANOVA, and it reveals a significant main effect of both Lesion $(F(2,144)=833.80,p<.001,\omega^2=0.92)$ and Task $(F(1,144)=244.91,p<.001,\omega^2=0.62)$ on reaction time, as well as a significant interaction between Lesion and Task $(F(5,144)=312.96,p<.001,\omega^2=0.81)$. Given that there is a significant interaction, we do not interpret the main effects directly, rather proceeding to perform tests for simple main effects of Task, at individual levels of Lesion. Since there are 3 levels of Lesion for which the test for simple main effect of Task is repeated, each test is evaluated at an $\alpha$-level of $.05/3=.016$, and significance of simple main effect is inferred only if the observed $p$-value is less than $.016$. This keeps the family-wise Type-I error rate at $p=.05$.
+
+As predicted, only for patients with DMN lesions, reaction times for Internal attention tasks $(M=150.00,SD=6.00)$ were significantly higher than the reaction times for External attention tasks $(M=100.00,SD=6.00)$, $(F(1,144)=868.06,p<.001,d=8.33)$. For patients with DAN lesions, there was no significant difference in reaction times between Internal attention $(M=148.00,SD=6.00)$ and External attention $(M=150.00,SD=6.00)$ tasks, $(F(1,144)=1.39,p=.240,d=-0.33)$. There was also as no significant difference in reaction times between Internal attention $(M=99.00.00,SD=6.00)$ and External attention $(M=101.00,SD=6.00)$ tasks in healthy control participants $(F(1,144)=1.39,p=.240,d=-0.33)$.
+
+The observed simple main effects (and interaction) is illustrated in figure 1.
+
+```{r,fig.cap="Mean reaction times (in ms) for all conditions. Error bars represent 95% CI around mean"}
+
+source(here::here("R", "apa_legend.R"))
+
+BarP = ggpubr::ggbarplot(data=lesion_task,xlab="Task",x="Task",ylab="Reaction Time (in ms)",y="reaction_time",add="mean_ci",fill="Lesion",palette = "grey", position = position_dodge(0.6),width=0.55)
+
+BarP + apa_legend(position = "topright")
+```
+
+
+\newpage
+
+## Question 1d
+
+*State why you chose to investigate the specific simple main effects that you reported in your results section (i.e., why you chose to hold that IV constant as opposed to the other). State one advantage or disadvantage of your analytic decision, compared to if you had alternatively decided to hold the other IV constant. (2 marks)*
+
+*Answer*
+
+Three reasons behind why I hold the levels of Lesion constant and compare between Task conditions, and not the other way round, are:
+
+1. This helps me test whether the behavioral efficiency differs across the two types of Tasks (internal vs external attention) due to damage in one particular brain network (DMN, or DAN, or none) at a time. This approach directly relates to my research hypothesis, and helps test for the relative necessity of an intact DMN (and DAN, separately) for internal vs external attention tasks.
+
+2. The Lesion groups are not randomly assigned, and so this is only a quasi-experimental study. The Task groups however, are randomly assigned, and so comparison between Task groups will be free from any confounds (physiological etc.) dependent on membership to Lesion group (which cannot be balanced by randomisation of assignment).
+
+3. Comparing across the levels of Task for simple main effects does not require post-hoc tests because there are only two levels of Task, and the most stringent $\alpha$-level used is $0.05/3 = 0.016$, as opposed to three post-hoc pairwise comparisons for each of two simple main effects the other way round, setting the $\alpha$-level for all pairwise comparisons at $0.05/(2*3) = 0.008$, which has much less power than the former option. 
+
+
+\newpage
+
+# Question 2
+
+*State why you would typically want to pool variance for your follow-up tests. Give an example of when you would not want to pool variance (i.e., provide a reason – you do not need to come up with a scenario). (2 marks)*
+
+*Answer*
+
+Using pooled variance (across groups) for follow-up tests gives a more accurate estimate of the variance. Moreover, using pooled variance for the comparisons makes the denominator degrees of freedom larger, and can often lead to greater power for our post-hoc tests (which might already be underpowered by corrections/adjustments).
+
+If the assumption of homogeneity of variances across groups is not met, we should not be pooling the variances, since now group membership itself determines the within-group variance estimate, and any comparisons using pooled variances in such a scenario may significantly inflate the Type-I or Type-II error rate.
+
+
+\newpage
+
+# Bonus
+
+*If you had a factorial ANOVA with two IVs, and both main effects plus the interaction were significant, how would you proceed with the analysis and why? (0.5 BONUS marks, not to exceed 100%)*
+
+*Answer*
+
+If the interaction is significant, we would not interpret the main effects, since a significant interaction already tells us that the effect of one IV (IV1) depends on the level of the other IV (IV2), and a main effect of either IV by themselves collapses across levels of the other IV, and is therefore simply not informative/specific enough about where actually the group differences are between levels of that IV, and how they depend on levels of the other IV.
+
+If there is an interaction, therefore, we choose IV1 to hold constant at one of its levels, and then look at the simple main effect of IV2 at that particular level of IV1. If the simple main effect of IV2 at this levels of IV1 is significant, we proceed to do follow-up tests to determine which levels of the IV2 differ from each other, at that particular level of IV1. This entire process is iteratively repeated to test for the simple main effect of IV2 (and follow-ups, if significant) at each individual level of IV1. 
+
+In order to control for the infaltion of Type-I error rates by the multiple comparisons we make, in this process, appropriate corrections/adjustments are made to the tests depending on factors like whether they are a-priori vs post-hoc hypotheses, or whether the comparisons involve simple vs complex contrasts.
